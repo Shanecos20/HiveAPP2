@@ -2,23 +2,29 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
 import { LineChart } from 'react-native-chart-kit';
+import LineChartWrapper from '../components/common/LineChartWrapper';
 import { Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
 import StatusBadge from '../components/common/StatusBadge';
 import theme from '../utils/theme';
 import { formatDateTime, getRecommendation } from '../utils/helpers';
+import { useTheme } from '../contexts/ThemeContext';
 
 const HiveDetailScreen = ({ route, navigation }) => {
   const { hiveId } = route.params;
+  const { theme: currentTheme, isDarkMode } = useTheme();
   const hive = useSelector(state => 
     state.hives.hives.find(h => h.id === hiveId)
   );
   
   if (!hive) {
     return (
-      <View style={styles.container}>
-        <Text>Hive not found</Text>
+      <View style={[
+        styles.container,
+        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
+      ]}>
+        <Text style={{ color: currentTheme?.colors?.text || theme.colors.text }}>Hive not found</Text>
       </View>
     );
   }
@@ -70,188 +76,278 @@ const HiveDetailScreen = ({ route, navigation }) => {
     ],
   };
   
+  // Dynamic chart config based on current theme
   const chartConfig = {
-    backgroundGradientFrom: theme.colors.white,
-    backgroundGradientTo: theme.colors.white,
+    backgroundGradientFrom: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white,
+    backgroundGradientTo: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white,
     decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => isDarkMode 
+      ? `rgba(255, 255, 255, ${opacity})` 
+      : `rgba(0, 0, 0, ${opacity})`,
+    labelColor: (opacity = 1) => isDarkMode 
+      ? `rgba(255, 255, 255, ${opacity})` 
+      : `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: '4',
       strokeWidth: '1',
-      stroke: theme.colors.primary,
+      stroke: currentTheme?.colors?.primary || theme.colors.primary,
     },
   };
-  
-  // Get AI recommendation based on sensor data
-  const recommendation = getRecommendation(hive.sensors);
+
+  // Get recommendations for each sensor
+  const temperatureRecommendation = getRecommendation('temperature', hive.sensors.temperature);
+  const humidityRecommendation = getRecommendation('humidity', hive.sensors.humidity);
+  const varroaRecommendation = getRecommendation('varroa', hive.sensors.varroa);
+  const weightRecommendation = getRecommendation('weight', hive.sensors.weight);
   
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={[
+        styles.container,
+        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
+      ]}
+    >
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
+          <Ionicons 
+            name="arrow-back" 
+            size={24} 
+            color={currentTheme?.colors?.text || theme.colors.black} 
+          />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{hive.name}</Text>
-        <StatusBadge status={hive.status} />
+        <View style={styles.headerTitleContainer}>
+          <Text style={[
+            styles.headerTitle,
+            { color: currentTheme?.colors?.text || theme.colors.black }
+          ]}>
+            {hive.name}
+          </Text>
+          <StatusBadge status={hive.status} />
+        </View>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
+        >
+          <Ionicons 
+            name="create-outline" 
+            size={24} 
+            color={currentTheme?.colors?.primary || theme.colors.primary} 
+          />
+        </TouchableOpacity>
       </View>
       
       <View style={styles.infoContainer}>
-        <View style={styles.infoItem}>
-          <Ionicons name="location" size={16} color={theme.colors.grey} />
-          <Text style={styles.infoText}>{hive.location}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="time" size={16} color={theme.colors.grey} />
-          <Text style={styles.infoText}>Last updated: {formatDateTime(hive.lastUpdated)}</Text>
-        </View>
+        <Text style={[
+          styles.location,
+          { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+        ]}>
+          <Ionicons 
+            name="location" 
+            size={16} 
+            color={currentTheme?.colors?.textSecondary || theme.colors.grey} 
+          />
+          {' '}{hive.location}
+        </Text>
+        <Text style={[
+          styles.lastUpdated,
+          { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+        ]}>
+          Last updated: {formatDateTime(hive.lastUpdated)}
+        </Text>
       </View>
       
-      {/* AI Recommendation */}
-      <Card 
-        title="AI Recommendation" 
-        variant="elevated"
-        style={[
-          styles.recommendationCard,
-          { 
-            borderLeftColor: hive.status === 'critical' 
-              ? theme.colors.error 
-              : hive.status === 'warning' 
-              ? theme.colors.warning 
-              : theme.colors.success 
-          }
-        ]}
-      >
-        <View style={styles.recommendationContent}>
-          <Ionicons 
-            name={
-              hive.status === 'critical' 
-                ? 'warning' 
-                : hive.status === 'warning' 
-                ? 'alert-circle' 
-                : 'checkmark-circle'
-            } 
-            size={24} 
-            color={
-              hive.status === 'critical' 
-                ? theme.colors.error 
-                : hive.status === 'warning' 
-                ? theme.colors.warning 
-                : theme.colors.success
-            } 
-          />
-          <Text style={styles.recommendationText}>{recommendation}</Text>
-        </View>
-      </Card>
-      
-      {/* Current Readings */}
-      <Card title="Current Readings">
-        <View style={styles.readingsContainer}>
-          <View style={styles.readingItem}>
-            <View style={styles.readingHeader}>
-              <Ionicons name="thermometer" size={20} color={theme.colors.error} />
-              <Text style={styles.readingLabel}>Temperature</Text>
-            </View>
-            <Text style={styles.readingValue}>{hive.sensors.temperature}°C</Text>
+      {/* Temperature Chart */}
+      <Card title="Temperature">
+        <View style={styles.sensorHeader}>
+          <View style={styles.currentValue}>
+            <Text style={[
+              styles.currentValueText,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>
+              Current: {hive.sensors.temperature}°C
+            </Text>
           </View>
           
-          <View style={styles.readingItem}>
-            <View style={styles.readingHeader}>
-              <Ionicons name="water" size={20} color={theme.colors.info} />
-              <Text style={styles.readingLabel}>Humidity</Text>
-            </View>
-            <Text style={styles.readingValue}>{hive.sensors.humidity}%</Text>
-          </View>
-          
-          <View style={styles.readingItem}>
-            <View style={styles.readingHeader}>
-              <Ionicons name="bug" size={20} color={theme.colors.warning} />
-              <Text style={styles.readingLabel}>Varroa Index</Text>
-            </View>
-            <Text style={styles.readingValue}>{hive.sensors.varroa}</Text>
-          </View>
-          
-          <View style={styles.readingItem}>
-            <View style={styles.readingHeader}>
-              <Ionicons name="scale" size={20} color={theme.colors.success} />
-              <Text style={styles.readingLabel}>Weight</Text>
-            </View>
-            <Text style={styles.readingValue}>{hive.sensors.weight} kg</Text>
+          <View style={[
+            styles.recommendation,
+            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.lightGrey }
+          ]}>
+            <Text style={[
+              styles.recommendationText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>
+              {temperatureRecommendation}
+            </Text>
           </View>
         </View>
-      </Card>
-      
-      {/* Detailed Charts */}
-      <Card title="Temperature History">
-        <LineChart
+        
+        <LineChartWrapper
           data={temperatureData}
-          width={screenWidth - theme.spacing.medium * 2}
-          height={180}
+          width={screenWidth}
+          height={220}
           chartConfig={chartConfig}
           bezier
+          withDots={true}
           style={styles.chart}
         />
       </Card>
       
-      <Card title="Humidity History">
-        <LineChart
-          data={humidityData}
-          width={screenWidth - theme.spacing.medium * 2}
-          height={180}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
-      </Card>
-      
-      <Card title="Varroa Mite Index History">
-        <LineChart
-          data={varroaData}
-          width={screenWidth - theme.spacing.medium * 2}
-          height={180}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
-      </Card>
-      
-      <Card title="Weight History">
-        <LineChart
-          data={weightData}
-          width={screenWidth - theme.spacing.medium * 2}
-          height={180}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
-      </Card>
-      
-      {/* Actions */}
-      <Card title="Actions">
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Insights', { hiveId: hive.id })}
-          >
-            <Ionicons name="bulb" size={24} color={theme.colors.white} />
-            <Text style={styles.actionButtonText}>View AI Insights</Text>
-          </TouchableOpacity>
+      {/* Humidity Chart */}
+      <Card title="Humidity">
+        <View style={styles.sensorHeader}>
+          <View style={styles.currentValue}>
+            <Text style={[
+              styles.currentValueText,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>
+              Current: {hive.sensors.humidity}%
+            </Text>
+          </View>
           
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}
-            onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
-          >
-            <Ionicons name="create" size={24} color={theme.colors.white} />
-            <Text style={styles.actionButtonText}>Edit Hive</Text>
-          </TouchableOpacity>
+          <View style={[
+            styles.recommendation,
+            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.lightGrey }
+          ]}>
+            <Text style={[
+              styles.recommendationText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>
+              {humidityRecommendation}
+            </Text>
+          </View>
         </View>
+        
+        <LineChartWrapper
+          data={humidityData}
+          width={screenWidth}
+          height={220}
+          chartConfig={chartConfig}
+          bezier
+          withDots={true}
+          style={styles.chart}
+        />
       </Card>
+      
+      {/* Varroa Chart */}
+      <Card title="Varroa Mite Index">
+        <View style={styles.sensorHeader}>
+          <View style={styles.currentValue}>
+            <Text style={[
+              styles.currentValueText,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>
+              Current: {hive.sensors.varroa}
+            </Text>
+          </View>
+          
+          <View style={[
+            styles.recommendation,
+            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.lightGrey }
+          ]}>
+            <Text style={[
+              styles.recommendationText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>
+              {varroaRecommendation}
+            </Text>
+          </View>
+        </View>
+        
+        <LineChartWrapper
+          data={varroaData}
+          width={screenWidth}
+          height={220}
+          chartConfig={chartConfig}
+          bezier
+          withDots={true}
+          style={styles.chart}
+        />
+      </Card>
+      
+      {/* Weight Chart */}
+      <Card title="Weight">
+        <View style={styles.sensorHeader}>
+          <View style={styles.currentValue}>
+            <Text style={[
+              styles.currentValueText,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>
+              Current: {hive.sensors.weight} kg
+            </Text>
+          </View>
+          
+          <View style={[
+            styles.recommendation,
+            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.lightGrey }
+          ]}>
+            <Text style={[
+              styles.recommendationText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>
+              {weightRecommendation}
+            </Text>
+          </View>
+        </View>
+        
+        <LineChartWrapper
+          data={weightData}
+          width={screenWidth}
+          height={220}
+          chartConfig={chartConfig}
+          bezier
+          withDots={true}
+          style={styles.chart}
+        />
+      </Card>
+      
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity 
+          style={[
+            styles.actionButtonLarge,
+            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white }
+          ]}
+          onPress={() => navigation.navigate('Insights', { hiveId: hive.id })}
+        >
+          <Ionicons 
+            name="bulb" 
+            size={24} 
+            color={currentTheme?.colors?.primary || theme.colors.primary} 
+          />
+          <Text style={[
+            styles.actionButtonText,
+            { color: currentTheme?.colors?.text || theme.colors.black }
+          ]}>
+            View AI Insights
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[
+            styles.actionButtonLarge,
+            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white }
+          ]}
+          onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
+        >
+          <Ionicons 
+            name="create" 
+            size={24} 
+            color={currentTheme?.colors?.primary || theme.colors.primary} 
+          />
+          <Text style={[
+            styles.actionButtonText,
+            { color: currentTheme?.colors?.text || theme.colors.black }
+          ]}>
+            Edit Hive
+          </Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -259,7 +355,6 @@ const HiveDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: theme.spacing.medium,
   },
   header: {
@@ -269,90 +364,78 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.medium,
   },
   backButton: {
-    marginRight: theme.spacing.medium,
+    padding: theme.spacing.small,
+    marginRight: theme.spacing.small,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: theme.typography.headingMedium,
     fontWeight: 'bold',
-    color: theme.colors.black,
-    flex: 1,
+    marginRight: theme.spacing.small,
+  },
+  actionButton: {
+    padding: theme.spacing.small,
   },
   infoContainer: {
     marginBottom: theme.spacing.medium,
   },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.small,
-  },
-  infoText: {
+  location: {
     fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
-    marginLeft: theme.spacing.small,
+    marginBottom: theme.spacing.tiny,
   },
-  recommendationCard: {
-    borderLeftWidth: 4,
-  },
-  recommendationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recommendationText: {
-    fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
-    marginLeft: theme.spacing.medium,
-    flex: 1,
-  },
-  readingsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  readingItem: {
-    width: '48%',
-    backgroundColor: theme.colors.lightGrey,
-    borderRadius: theme.layout.borderRadiusSmall,
-    padding: theme.spacing.medium,
-    marginBottom: theme.spacing.medium,
-  },
-  readingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.small,
-  },
-  readingLabel: {
-    fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
-    marginLeft: theme.spacing.small,
-  },
-  readingValue: {
-    fontSize: theme.typography.headingMedium,
-    fontWeight: 'bold',
-    color: theme.colors.black,
+  lastUpdated: {
+    fontSize: theme.typography.bodySmall,
   },
   chart: {
-    marginVertical: theme.spacing.small,
+    marginVertical: theme.spacing.medium,
     borderRadius: theme.layout.borderRadiusSmall,
   },
-  actionsContainer: {
+  sensorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.small,
   },
-  actionButton: {
+  currentValue: {
+    flex: 1,
+  },
+  currentValueText: {
+    fontSize: theme.typography.bodyLarge,
+    fontWeight: 'bold',
+  },
+  recommendation: {
+    flex: 2,
+    backgroundColor: theme.colors.lightGrey,
+    padding: theme.spacing.small,
+    borderRadius: theme.layout.borderRadiusSmall,
+  },
+  recommendationText: {
+    fontSize: theme.typography.bodySmall,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.medium,
+    marginBottom: theme.spacing.large,
+  },
+  actionButtonLarge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.layout.borderRadiusMedium,
     padding: theme.spacing.medium,
-    flex: 1,
-    marginHorizontal: theme.spacing.tiny,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.layout.borderRadiusMedium,
+    flex: 0.48,
+    ...theme.layout.shadowProps,
   },
   actionButtonText: {
     fontSize: theme.typography.bodyMedium,
-    fontWeight: 'bold',
-    color: theme.colors.white,
     marginLeft: theme.spacing.small,
+    fontWeight: 'bold',
   },
 });
 

@@ -99,9 +99,12 @@ const hiveSlice = createSlice({
     },
     removeHive: (state, action) => {
       state.hives = state.hives.filter(hive => hive.id !== action.payload);
-      // If the selected hive is removed, select the first one
+      
+      // If the removed hive was selected, select the first available hive
       if (state.selectedHiveId === action.payload && state.hives.length > 0) {
         state.selectedHiveId = state.hives[0].id;
+      } else if (state.hives.length === 0) {
+        state.selectedHiveId = null;
       }
     },
     simulateHiveEvent: (state, action) => {
@@ -137,6 +140,17 @@ const hiveSlice = createSlice({
         hive.lastUpdated = new Date().toISOString();
       }
     },
+    updateHive: (state, action) => {
+      const { id, name, location, notes } = action.payload;
+      const hiveIndex = state.hives.findIndex(hive => hive.id === id);
+      
+      if (hiveIndex !== -1) {
+        state.hives[hiveIndex].name = name;
+        state.hives[hiveIndex].location = location;
+        state.hives[hiveIndex].notes = notes;
+        state.hives[hiveIndex].lastUpdated = new Date().toISOString();
+      }
+    },
   },
 });
 
@@ -163,7 +177,8 @@ export const {
   selectHive, 
   addHive,
   removeHive,
-  simulateHiveEvent
+  simulateHiveEvent,
+  updateHive
 } = hiveSlice.actions;
 
 export default hiveSlice.reducer; 

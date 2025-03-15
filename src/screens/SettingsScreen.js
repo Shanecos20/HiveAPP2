@@ -4,15 +4,22 @@ import { useSelector, useDispatch } from 'react-redux';
 import { updateThresholds, triggerTestNotification } from '../redux/notificationSlice';
 import { simulateHiveEvent } from '../redux/hiveSlice';
 import { logout } from '../redux/authSlice';
+import { updateNotificationThresholds } from '../redux/notificationSlice';
+import { updateAppSettings } from '../redux/authSlice';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
+import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../contexts/ThemeContext';
 
-const SettingsScreen = ({ navigation }) => {
+const SettingsScreen = () => {
   const dispatch = useDispatch();
+  const navigation = useNavigation();
+  const { theme: currentTheme, isDarkMode } = useTheme();
+  
   const { hives, selectedHiveId } = useSelector(state => state.hives);
   const { thresholds } = useSelector(state => state.notifications);
-  const { user, userType } = useSelector(state => state.auth);
+  const { user, userType, appSettings } = useSelector(state => state.auth);
   
   // Local state for threshold inputs
   const [tempMin, setTempMin] = useState(thresholds.temperature.min.toString());
@@ -60,6 +67,12 @@ const SettingsScreen = ({ navigation }) => {
       hiveId: selectedHive.id,
       eventType: type,
     }));
+    
+    // Navigate to Insights screen with the event type
+    navigation.navigate('Insights', { 
+      hiveId: selectedHive.id,
+      eventType: type 
+    });
   };
   
   const handleLogout = () => {
@@ -70,29 +83,34 @@ const SettingsScreen = ({ navigation }) => {
     });
   };
   
+  // Function to handle toggling app settings
+  const handleToggleSetting = (setting, value) => {
+    dispatch(updateAppSettings({ [setting]: value }));
+  };
+  
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: currentTheme.colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
+          <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: currentTheme.colors.text }]}>Settings</Text>
       </View>
       
       {/* User Profile */}
       <Card title="User Profile" variant="elevated">
         <View style={styles.profileContainer}>
-          <View style={styles.profileIcon}>
-            <Ionicons name="person" size={40} color={theme.colors.white} />
+          <View style={[styles.profileIcon, { backgroundColor: currentTheme.colors.primary }]}>
+            <Ionicons name="person" size={40} color={currentTheme.colors.white} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.name || 'User'}</Text>
-            <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
-            <View style={styles.userTypeContainer}>
-              <Text style={styles.userTypeLabel}>
+            <Text style={[styles.profileName, { color: currentTheme.colors.text }]}>{user?.name || 'User'}</Text>
+            <Text style={[styles.profileEmail, { color: currentTheme.colors.textSecondary }]}>{user?.email || 'user@example.com'}</Text>
+            <View style={[styles.userTypeContainer, { backgroundColor: currentTheme.colors.primaryLight }]}>
+              <Text style={[styles.userTypeLabel, { color: isDarkMode ? currentTheme.colors.white : currentTheme.colors.primaryDark }]}>
                 {userType === 'commercial' ? 'Commercial Beekeeper' : 'Hobby Beekeeper'}
               </Text>
             </View>
@@ -103,21 +121,29 @@ const SettingsScreen = ({ navigation }) => {
       {/* Notification Thresholds */}
       <Card title="Notification Thresholds">
         <View style={styles.thresholdContainer}>
-          <Text style={styles.thresholdTitle}>Temperature (°C)</Text>
+          <Text style={[styles.thresholdTitle, { color: currentTheme.colors.text }]}>Temperature (°C)</Text>
           <View style={styles.thresholdInputs}>
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Min</Text>
+              <Text style={[styles.inputLabel, { color: currentTheme.colors.textSecondary }]}>Min</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: currentTheme.colors.surface,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.text
+                }]}
                 value={tempMin}
                 onChangeText={setTempMin}
                 keyboardType="numeric"
               />
             </View>
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Max</Text>
+              <Text style={[styles.inputLabel, { color: currentTheme.colors.textSecondary }]}>Max</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: currentTheme.colors.surface,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.text
+                }]}
                 value={tempMax}
                 onChangeText={setTempMax}
                 keyboardType="numeric"
@@ -127,21 +153,29 @@ const SettingsScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.thresholdContainer}>
-          <Text style={styles.thresholdTitle}>Humidity (%)</Text>
+          <Text style={[styles.thresholdTitle, { color: currentTheme.colors.text }]}>Humidity (%)</Text>
           <View style={styles.thresholdInputs}>
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Min</Text>
+              <Text style={[styles.inputLabel, { color: currentTheme.colors.textSecondary }]}>Min</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: currentTheme.colors.surface,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.text
+                }]}
                 value={humidityMin}
                 onChangeText={setHumidityMin}
                 keyboardType="numeric"
               />
             </View>
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Max</Text>
+              <Text style={[styles.inputLabel, { color: currentTheme.colors.textSecondary }]}>Max</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: currentTheme.colors.surface,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.text
+                }]}
                 value={humidityMax}
                 onChangeText={setHumidityMax}
                 keyboardType="numeric"
@@ -151,12 +185,16 @@ const SettingsScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.thresholdContainer}>
-          <Text style={styles.thresholdTitle}>Varroa Mite Index</Text>
+          <Text style={[styles.thresholdTitle, { color: currentTheme.colors.text }]}>Varroa Mite Index</Text>
           <View style={styles.thresholdInputs}>
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Max</Text>
+              <Text style={[styles.inputLabel, { color: currentTheme.colors.textSecondary }]}>Max</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: currentTheme.colors.surface,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.text
+                }]}
                 value={varroaMax}
                 onChangeText={setVarroaMax}
                 keyboardType="numeric"
@@ -166,17 +204,17 @@ const SettingsScreen = ({ navigation }) => {
         </View>
         
         <TouchableOpacity 
-          style={styles.updateButton}
+          style={[styles.updateButton, { backgroundColor: currentTheme.colors.primary }]}
           onPress={handleUpdateThresholds}
         >
-          <Text style={styles.updateButtonText}>Update Thresholds</Text>
+          <Text style={[styles.updateButtonText, { color: currentTheme.colors.white }]}>Update Thresholds</Text>
         </TouchableOpacity>
       </Card>
       
       {/* Test Notifications */}
       <Card title="Test Notifications">
         <View style={styles.testHiveSelector}>
-          <Text style={styles.testHiveLabel}>Select Hive for Testing:</Text>
+          <Text style={[styles.testHiveLabel, { color: currentTheme.colors.textSecondary }]}>Select Hive for Testing:</Text>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -187,14 +225,25 @@ const SettingsScreen = ({ navigation }) => {
                 key={hive.id}
                 style={[
                   styles.hiveSelectorItem,
-                  testHiveId === hive.id && styles.hiveSelectorItemActive
+                  { 
+                    backgroundColor: currentTheme.colors.surface,
+                    borderColor: currentTheme.colors.border
+                  },
+                  testHiveId === hive.id && { 
+                    backgroundColor: currentTheme.colors.primaryLight,
+                    borderColor: currentTheme.colors.primary
+                  }
                 ]}
                 onPress={() => setTestHiveId(hive.id)}
               >
                 <Text 
                   style={[
                     styles.hiveSelectorText,
-                    testHiveId === hive.id && styles.hiveSelectorTextActive
+                    { color: currentTheme.colors.textSecondary },
+                    testHiveId === hive.id && { 
+                      color: isDarkMode ? currentTheme.colors.white : currentTheme.colors.primary,
+                      fontWeight: 'bold'
+                    }
                   ]}
                 >
                   {hive.name}
@@ -206,34 +255,34 @@ const SettingsScreen = ({ navigation }) => {
         
         <View style={styles.testButtonsContainer}>
           <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: theme.colors.error }]}
+            style={[styles.testButton, { backgroundColor: currentTheme.colors.error }]}
             onPress={() => handleTestNotification('swarm')}
           >
-            <Ionicons name="warning" size={24} color={theme.colors.white} />
+            <Ionicons name="warning" size={24} color={currentTheme.colors.white} />
             <Text style={styles.testButtonText}>Simulate Swarm</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: theme.colors.warning }]}
+            style={[styles.testButton, { backgroundColor: currentTheme.colors.warning }]}
             onPress={() => handleTestNotification('varroa')}
           >
-            <Ionicons name="bug" size={24} color={theme.colors.white} />
+            <Ionicons name="bug" size={24} color={currentTheme.colors.white} />
             <Text style={styles.testButtonText}>Simulate Varroa Outbreak</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: theme.colors.info }]}
+            style={[styles.testButton, { backgroundColor: currentTheme.colors.info }]}
             onPress={() => handleTestNotification('temperature')}
           >
-            <Ionicons name="thermometer" size={24} color={theme.colors.white} />
+            <Ionicons name="thermometer" size={24} color={currentTheme.colors.white} />
             <Text style={styles.testButtonText}>Simulate Temperature Spike</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.testButton, { backgroundColor: currentTheme.colors.primary }]}
             onPress={() => handleTestNotification('humidity')}
           >
-            <Ionicons name="water" size={24} color={theme.colors.white} />
+            <Ionicons name="water" size={24} color={currentTheme.colors.white} />
             <Text style={styles.testButtonText}>Simulate Humidity Alert</Text>
           </TouchableOpacity>
         </View>
@@ -241,54 +290,57 @@ const SettingsScreen = ({ navigation }) => {
       
       {/* App Settings */}
       <Card title="App Settings">
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, { borderBottomColor: currentTheme.colors.divider }]}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingTitle}>Dark Mode</Text>
-            <Text style={styles.settingDescription}>Enable dark theme</Text>
+            <Text style={[styles.settingTitle, { color: currentTheme.colors.text }]}>Dark Mode</Text>
+            <Text style={[styles.settingDescription, { color: currentTheme.colors.textSecondary }]}>Enable dark theme</Text>
           </View>
           <Switch 
-            trackColor={{ false: theme.colors.grey, true: theme.colors.primaryLight }}
-            thumbColor={theme.colors.primary}
-            value={false}
+            trackColor={{ false: currentTheme.colors.grey, true: currentTheme.colors.primaryLight }}
+            thumbColor={currentTheme.colors.primary}
+            value={appSettings.darkMode}
+            onValueChange={(value) => handleToggleSetting('darkMode', value)}
           />
         </View>
         
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, { borderBottomColor: currentTheme.colors.divider }]}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingTitle}>Push Notifications</Text>
-            <Text style={styles.settingDescription}>Enable push notifications</Text>
+            <Text style={[styles.settingTitle, { color: currentTheme.colors.text }]}>Push Notifications</Text>
+            <Text style={[styles.settingDescription, { color: currentTheme.colors.textSecondary }]}>Enable push notifications</Text>
           </View>
           <Switch 
-            trackColor={{ false: theme.colors.grey, true: theme.colors.primaryLight }}
-            thumbColor={theme.colors.primary}
-            value={true}
+            trackColor={{ false: currentTheme.colors.grey, true: currentTheme.colors.primaryLight }}
+            thumbColor={currentTheme.colors.primary}
+            value={appSettings.pushNotifications}
+            onValueChange={(value) => handleToggleSetting('pushNotifications', value)}
           />
         </View>
         
-        <View style={styles.settingItem}>
+        <View style={[styles.settingItem, { borderBottomColor: currentTheme.colors.divider }]}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingTitle}>Data Sync</Text>
-            <Text style={styles.settingDescription}>Sync data in background</Text>
+            <Text style={[styles.settingTitle, { color: currentTheme.colors.text }]}>Data Sync</Text>
+            <Text style={[styles.settingDescription, { color: currentTheme.colors.textSecondary }]}>Sync data in background</Text>
           </View>
           <Switch 
-            trackColor={{ false: theme.colors.grey, true: theme.colors.primaryLight }}
-            thumbColor={theme.colors.primary}
-            value={true}
+            trackColor={{ false: currentTheme.colors.grey, true: currentTheme.colors.primaryLight }}
+            thumbColor={currentTheme.colors.primary}
+            value={appSettings.dataSync}
+            onValueChange={(value) => handleToggleSetting('dataSync', value)}
           />
         </View>
       </Card>
       
       {/* Logout Button */}
       <TouchableOpacity 
-        style={styles.logoutButton}
+        style={[styles.logoutButton, { backgroundColor: currentTheme.colors.error }]}
         onPress={handleLogout}
       >
-        <Ionicons name="log-out" size={20} color={theme.colors.white} />
+        <Ionicons name="log-out" size={20} color={currentTheme.colors.white} />
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
       
       <View style={styles.versionContainer}>
-        <Text style={styles.versionText}>HiveApp v1.0.0</Text>
+        <Text style={[styles.versionText, { color: currentTheme.colors.grey }]}>HiveApp v1.0.0</Text>
       </View>
     </ScrollView>
   );
@@ -297,7 +349,6 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: theme.spacing.medium,
   },
   header: {
@@ -312,7 +363,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.typography.headingMedium,
     fontWeight: 'bold',
-    color: theme.colors.black,
     flex: 1,
   },
   profileContainer: {
@@ -323,7 +373,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.medium,
@@ -334,16 +383,13 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: theme.typography.headingSmall,
     fontWeight: 'bold',
-    color: theme.colors.black,
     marginBottom: theme.spacing.tiny,
   },
   profileEmail: {
     fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
     marginBottom: theme.spacing.small,
   },
   userTypeContainer: {
-    backgroundColor: theme.colors.primaryLight,
     paddingHorizontal: theme.spacing.small,
     paddingVertical: theme.spacing.tiny,
     borderRadius: theme.layout.borderRadiusSmall,
@@ -351,7 +397,6 @@ const styles = StyleSheet.create({
   },
   userTypeLabel: {
     fontSize: theme.typography.bodySmall,
-    color: theme.colors.primaryDark,
     fontWeight: 'bold',
   },
   thresholdContainer: {
@@ -360,7 +405,6 @@ const styles = StyleSheet.create({
   thresholdTitle: {
     fontSize: theme.typography.bodyLarge,
     fontWeight: 'bold',
-    color: theme.colors.darkGrey,
     marginBottom: theme.spacing.small,
   },
   thresholdInputs: {
@@ -372,19 +416,15 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: theme.typography.bodySmall,
-    color: theme.colors.grey,
     marginBottom: theme.spacing.tiny,
   },
   input: {
-    backgroundColor: theme.colors.white,
     borderWidth: 1,
-    borderColor: theme.colors.lightGrey,
     borderRadius: theme.layout.borderRadiusSmall,
     padding: theme.spacing.small,
     fontSize: theme.typography.bodyMedium,
   },
   updateButton: {
-    backgroundColor: theme.colors.primary,
     borderRadius: theme.layout.borderRadiusMedium,
     padding: theme.spacing.medium,
     alignItems: 'center',
@@ -400,7 +440,6 @@ const styles = StyleSheet.create({
   },
   testHiveLabel: {
     fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
     marginBottom: theme.spacing.small,
   },
   hiveSelector: {
@@ -411,21 +450,10 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.small,
     marginRight: theme.spacing.small,
     borderRadius: theme.layout.borderRadiusMedium,
-    backgroundColor: theme.colors.white,
     borderWidth: 1,
-    borderColor: theme.colors.lightGrey,
-  },
-  hiveSelectorItemActive: {
-    backgroundColor: theme.colors.primaryLight,
-    borderColor: theme.colors.primary,
   },
   hiveSelectorText: {
     fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
-  },
-  hiveSelectorTextActive: {
-    color: theme.colors.primaryDark,
-    fontWeight: 'bold',
   },
   testButtonsContainer: {
     flexDirection: 'row',
@@ -453,25 +481,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: theme.spacing.medium,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.lightGrey,
   },
   settingTextContainer: {
     flex: 1,
   },
   settingTitle: {
     fontSize: theme.typography.bodyLarge,
-    color: theme.colors.black,
     marginBottom: theme.spacing.tiny,
   },
   settingDescription: {
     fontSize: theme.typography.bodySmall,
-    color: theme.colors.grey,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.error,
     borderRadius: theme.layout.borderRadiusMedium,
     padding: theme.spacing.medium,
     marginTop: theme.spacing.large,
@@ -489,7 +513,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: theme.typography.bodySmall,
-    color: theme.colors.grey,
   },
 });
 

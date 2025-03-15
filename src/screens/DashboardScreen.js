@@ -8,12 +8,15 @@ import Card from '../components/common/Card';
 import StatusBadge from '../components/common/StatusBadge';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
+import LineChartWrapper from '../components/common/LineChartWrapper';
 import { Dimensions } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
 const DashboardScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { hives, selectedHiveId } = useSelector(state => state.hives);
   const { userType } = useSelector(state => state.auth);
+  const { theme: currentTheme, isDarkMode } = useTheme();
   
   // Find the selected hive
   const selectedHive = hives.find(h => h.id === selectedHiveId) || hives[0];
@@ -90,31 +93,50 @@ const DashboardScreen = ({ navigation }) => {
     ],
   };
   
+  // Dynamic chart config based on current theme
   const chartConfig = {
-    backgroundGradientFrom: theme.colors.white,
-    backgroundGradientTo: theme.colors.white,
+    backgroundGradientFrom: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white,
+    backgroundGradientTo: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white,
     decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => isDarkMode 
+      ? `rgba(255, 255, 255, ${opacity})` 
+      : `rgba(0, 0, 0, ${opacity})`,
+    labelColor: (opacity = 1) => isDarkMode 
+      ? `rgba(255, 255, 255, ${opacity})` 
+      : `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: '4',
       strokeWidth: '1',
-      stroke: theme.colors.primary,
+      stroke: currentTheme?.colors?.primary || theme.colors.primary,
     },
   };
   
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={[
+        styles.container, 
+        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hive Dashboard</Text>
+        <Text style={[
+          styles.headerTitle, 
+          { color: currentTheme?.colors?.text || theme.colors.text }
+        ]}>
+          Hive Dashboard
+        </Text>
         <TouchableOpacity 
           style={styles.notificationButton}
           onPress={() => navigation.navigate('Notifications')}
         >
-          <Ionicons name="notifications" size={24} color={theme.colors.primary} />
+          <Ionicons 
+            name="notifications" 
+            size={24} 
+            color={currentTheme?.colors?.primary || theme.colors.primary} 
+          />
         </TouchableOpacity>
       </View>
       
@@ -129,14 +151,27 @@ const DashboardScreen = ({ navigation }) => {
             key={hive.id}
             style={[
               styles.hiveSelectorItem,
-              selectedHive.id === hive.id && styles.hiveSelectorItemActive
+              selectedHive.id === hive.id && styles.hiveSelectorItemActive,
+              { 
+                backgroundColor: isDarkMode 
+                  ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                  : theme.colors.white,
+                borderColor: isDarkMode
+                  ? currentTheme?.colors?.border || theme.colors.grey
+                  : theme.colors.lightGrey
+              }
             ]}
             onPress={() => handleHiveSelect(hive.id)}
           >
             <Text 
               style={[
                 styles.hiveSelectorText,
-                selectedHive.id === hive.id && styles.hiveSelectorTextActive
+                selectedHive.id === hive.id && styles.hiveSelectorTextActive,
+                { 
+                  color: isDarkMode 
+                    ? currentTheme?.colors?.textSecondary || theme.colors.lightGrey 
+                    : theme.colors.darkGrey 
+                }
               ]}
             >
               {hive.name}
@@ -147,11 +182,21 @@ const DashboardScreen = ({ navigation }) => {
         
         {userType === 'commercial' && (
           <TouchableOpacity
-            style={styles.addHiveButton}
+            style={[
+              styles.addHiveButton,
+              {
+                backgroundColor: isDarkMode 
+                  ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                  : theme.colors.white,
+              }
+            ]}
             onPress={() => navigation.navigate('AddHive')}
           >
-            <Ionicons name="add" size={20} color={theme.colors.primary} />
-            <Text style={styles.addHiveText}>Add Hive</Text>
+            <Ionicons name="add" size={20} color={currentTheme?.colors?.primary || theme.colors.primary} />
+            <Text style={[
+              styles.addHiveText,
+              { color: currentTheme?.colors?.primary || theme.colors.primary }
+            ]}>Add Hive</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -164,48 +209,114 @@ const DashboardScreen = ({ navigation }) => {
         onPress={handleHiveDetails}
       >
         <View style={styles.hiveInfo}>
-          <Text style={styles.hiveLocation}>
-            <Ionicons name="location" size={16} color={theme.colors.grey} />
+          <Text style={[
+            styles.hiveLocation,
+            { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+          ]}>
+            <Ionicons 
+              name="location" 
+              size={16} 
+              color={currentTheme?.colors?.textSecondary || theme.colors.grey} 
+            />
             {' '}{selectedHive.location}
           </Text>
-          <Text style={styles.hiveUpdated}>
+          <Text style={[
+            styles.hiveUpdated,
+            { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+          ]}>
             Last updated: {formatDateTime(selectedHive.lastUpdated)}
           </Text>
         </View>
         
         <View style={styles.sensorGrid}>
-          <View style={styles.sensorItem}>
+          <View style={[
+            styles.sensorItem,
+            { 
+              backgroundColor: isDarkMode 
+                ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                : theme.colors.lightGrey 
+            }
+          ]}>
             <Ionicons name="thermometer" size={24} color={theme.colors.error} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.temperature}°C</Text>
-            <Text style={styles.sensorLabel}>Temperature</Text>
+            <Text style={[
+              styles.sensorValue,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>{selectedHive.sensors.temperature}°C</Text>
+            <Text style={[
+              styles.sensorLabel,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+            ]}>Temperature</Text>
           </View>
           
-          <View style={styles.sensorItem}>
+          <View style={[
+            styles.sensorItem,
+            { 
+              backgroundColor: isDarkMode 
+                ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                : theme.colors.lightGrey 
+            }
+          ]}>
             <Ionicons name="water" size={24} color={theme.colors.info} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.humidity}%</Text>
-            <Text style={styles.sensorLabel}>Humidity</Text>
+            <Text style={[
+              styles.sensorValue,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>{selectedHive.sensors.humidity}%</Text>
+            <Text style={[
+              styles.sensorLabel,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+            ]}>Humidity</Text>
           </View>
           
-          <View style={styles.sensorItem}>
+          <View style={[
+            styles.sensorItem,
+            { 
+              backgroundColor: isDarkMode 
+                ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                : theme.colors.lightGrey 
+            }
+          ]}>
             <Ionicons name="bug" size={24} color={theme.colors.warning} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.varroa}</Text>
-            <Text style={styles.sensorLabel}>Varroa Index</Text>
+            <Text style={[
+              styles.sensorValue,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>{selectedHive.sensors.varroa}</Text>
+            <Text style={[
+              styles.sensorLabel,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+            ]}>Varroa Index</Text>
           </View>
           
-          <View style={styles.sensorItem}>
+          <View style={[
+            styles.sensorItem,
+            { 
+              backgroundColor: isDarkMode 
+                ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                : theme.colors.lightGrey 
+            }
+          ]}>
             <Ionicons name="scale" size={24} color={theme.colors.success} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.weight} kg</Text>
-            <Text style={styles.sensorLabel}>Weight</Text>
+            <Text style={[
+              styles.sensorValue,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>{selectedHive.sensors.weight} kg</Text>
+            <Text style={[
+              styles.sensorLabel,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+            ]}>Weight</Text>
           </View>
         </View>
       </Card>
       
       {/* Quick Charts */}
       <View style={styles.chartsContainer}>
-        <Card title="Temperature Trend" variant="outlined" style={styles.chartCard}>
-          <LineChart
+        <Card 
+          title="Temperature" 
+          variant="outlined" 
+          style={styles.chartCard}
+        >
+          <LineChartWrapper
             data={temperatureData}
-            width={screenWidth / 2 - theme.spacing.medium * 2}
+            width={screenWidth / 2 - theme.spacing.medium * 2.5}
             height={120}
             chartConfig={chartConfig}
             bezier
@@ -218,10 +329,14 @@ const DashboardScreen = ({ navigation }) => {
           />
         </Card>
         
-        <Card title="Humidity Trend" variant="outlined" style={styles.chartCard}>
-          <LineChart
+        <Card 
+          title="Humidity" 
+          variant="outlined" 
+          style={styles.chartCard}
+        >
+          <LineChartWrapper
             data={humidityData}
-            width={screenWidth / 2 - theme.spacing.medium * 2}
+            width={screenWidth / 2 - theme.spacing.medium * 2.5}
             height={120}
             chartConfig={chartConfig}
             bezier
@@ -239,27 +354,69 @@ const DashboardScreen = ({ navigation }) => {
       <Card title="Quick Actions">
         <View style={styles.actionsContainer}>
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isDarkMode 
+                  ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                  : theme.colors.lightGrey,
+              }
+            ]}
             onPress={() => navigation.navigate('HiveDetail', { hiveId: selectedHive.id })}
           >
-            <Ionicons name="analytics" size={24} color={theme.colors.primary} />
-            <Text style={styles.actionText}>View Details</Text>
+            <Ionicons 
+              name="analytics" 
+              size={24} 
+              color={currentTheme?.colors?.primary || theme.colors.primary} 
+            />
+            <Text style={[
+              styles.actionText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>View Details</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isDarkMode 
+                  ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                  : theme.colors.lightGrey,
+              }
+            ]}
             onPress={() => navigation.navigate('Insights')}
           >
-            <Ionicons name="bulb" size={24} color={theme.colors.primary} />
-            <Text style={styles.actionText}>AI Insights</Text>
+            <Ionicons 
+              name="bulb" 
+              size={24} 
+              color={currentTheme?.colors?.primary || theme.colors.primary} 
+            />
+            <Text style={[
+              styles.actionText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>AI Insights</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isDarkMode 
+                  ? currentTheme?.colors?.card || theme.colors.darkGrey 
+                  : theme.colors.lightGrey,
+              }
+            ]}
             onPress={() => navigation.navigate('Settings')}
           >
-            <Ionicons name="settings" size={24} color={theme.colors.primary} />
-            <Text style={styles.actionText}>Settings</Text>
+            <Ionicons 
+              name="settings" 
+              size={24} 
+              color={currentTheme?.colors?.primary || theme.colors.primary} 
+            />
+            <Text style={[
+              styles.actionText,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+            ]}>Settings</Text>
           </TouchableOpacity>
         </View>
       </Card>
@@ -270,7 +427,6 @@ const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: theme.spacing.medium,
   },
   header: {
@@ -372,9 +528,11 @@ const styles = StyleSheet.create({
   chartsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: theme.spacing.medium,
   },
   chartCard: {
     width: '48%',
+    height: 200,
   },
   chart: {
     borderRadius: theme.layout.borderRadiusSmall,

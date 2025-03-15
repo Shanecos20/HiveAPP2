@@ -1,0 +1,89 @@
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useColorScheme } from 'react-native';
+import { useSelector } from 'react-redux';
+import theme from '../utils/theme';
+
+// Create a default theme context value that's guaranteed to have all required properties
+const defaultThemeContextValue = {
+  theme: {
+    ...theme,
+    colors: theme.colors,
+    spacing: theme.spacing,
+    layout: theme.layout,
+    typography: theme.typography
+  },
+  isDarkMode: false,
+  setDarkMode: () => {}, // No-op function as a placeholder
+};
+
+// Create context with default values to ensure it's never undefined
+export const ThemeContext = createContext(defaultThemeContextValue);
+
+// Safety function to ensure theme is never malformed
+const createSafeTheme = (isDark = false) => {
+  return {
+    ...theme,
+    colors: isDark ? theme.dark.colors : theme.light.colors,
+    spacing: theme.spacing || { tiny: 4, small: 8, medium: 16, large: 24, xlarge: 32 },
+    layout: theme.layout || { borderRadiusSmall: 4, borderRadiusMedium: 8, borderRadiusLarge: 12 },
+    typography: theme.typography || { 
+      bodySmall: 12, bodyMedium: 14, bodyLarge: 16,
+      headingSmall: 18, headingMedium: 22, headingLarge: 26
+    }
+  };
+};
+
+// Theme provider component with enhanced safety
+export const ThemeProvider = ({ children }) => {
+  const colorScheme = useColorScheme();
+  
+  // Try to get app settings, with fallback to prevent errors
+  const authState = useSelector(state => state?.auth) || {};
+  const appSettings = authState.appSettings || { darkMode: false };
+  
+  const [isDarkMode, setIsDarkMode] = useState(appSettings.darkMode || false);
+  
+  // Initialize theme with all properties
+  const [currentTheme, setCurrentTheme] = useState(createSafeTheme(appSettings.darkMode));
+  
+  // Function to directly set dark mode (useful for testing)
+  const setDarkMode = (value) => {
+    setIsDarkMode(value);
+    setCurrentTheme(createSafeTheme(value));
+  };
+  
+  // Update the theme when dark mode setting changes
+  useEffect(() => {
+    if (appSettings?.darkMode) {
+      setIsDarkMode(true);
+      setCurrentTheme(createSafeTheme(true));
+    } else {
+      setIsDarkMode(false);
+      setCurrentTheme(createSafeTheme(false));
+    }
+  }, [appSettings?.darkMode]);
+  
+  // Provide the theme context with both theme data and the setter function
+  return (
+    <ThemeContext.Provider value={{ 
+      theme: currentTheme, 
+      isDarkMode,
+      setDarkMode 
+    }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+// Hook to use the theme with enhanced safety
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  
+  // If context is somehow undefined or missing properties, return the default theme
+  if (!context || !context.theme || !context.theme.colors) {
+    console.warn('useTheme was used outside of ThemeProvider or context is invalid');
+    return defaultThemeContextValue;
+  }
+  
+  return context;
+}; 

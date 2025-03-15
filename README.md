@@ -54,6 +54,7 @@ yarn start
 ```
 
 4. Open the app on your device using the Expo Go app or run it in a simulator
+For IOS, npm start the app and then scan the QR code that appears in the terminal with your camera app to launch the expo app.
 
 ## Project Structure
 

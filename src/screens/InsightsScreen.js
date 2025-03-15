@@ -6,201 +6,83 @@ import Card from '../components/common/Card';
 import StatusBadge from '../components/common/StatusBadge';
 import theme from '../utils/theme';
 import { formatDateTime, getRecommendation } from '../utils/helpers';
+import { getAiInsights } from '../services/aiService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const InsightsScreen = ({ navigation, route }) => {
   const { hives } = useSelector(state => state.hives);
   const { notifications } = useSelector(state => state.notifications);
+  const { theme: currentTheme } = useTheme();
   
   // If a hiveId is passed in the route params, use that, otherwise use the first hive
   const initialHiveId = route.params?.hiveId || (hives.length > 0 ? hives[0].id : null);
   const [selectedHiveId, setSelectedHiveId] = useState(initialHiveId);
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState([]);
+  const [eventType, setEventType] = useState(route.params?.eventType || null);
   
   const selectedHive = hives.find(h => h.id === selectedHiveId);
   
   // Generate insights based on hive data and notifications
   useEffect(() => {
     if (selectedHive) {
-      // Simulate loading time for AI analysis
-      setLoading(true);
-      
-      const timer = setTimeout(() => {
-        generateInsights();
-        setLoading(false);
-      }, 1500);
-      
-      return () => clearTimeout(timer);
+      fetchAiInsights();
     }
-  }, [selectedHiveId]);
-  
-  const generateInsights = () => {
-    const newInsights = [];
-    
-    // Get basic recommendation based on sensor data
-    const basicRecommendation = getRecommendation(selectedHive.sensors);
-    newInsights.push({
-      id: 'basic',
-      title: 'Current Status Analysis',
-      message: basicRecommendation,
-      type: selectedHive.status,
-      icon: 'analytics',
-    });
-    
-    // Add temperature-specific insights
-    const { temperature } = selectedHive.sensors;
-    if (temperature > 38) {
-      newInsights.push({
-        id: 'temp-high',
-        title: 'Temperature Management',
-        message: 'High temperature detected. Consider providing shade or improving ventilation to prevent overheating. Bees may be bearding at the entrance to cool the hive.',
+  }, [selectedHiveId, eventType]);
+
+  const fetchAiInsights = async () => {
+    setLoading(true);
+    try {
+      const aiInsights = await getAiInsights(selectedHive, eventType);
+      setInsights(aiInsights);
+    } catch (error) {
+      console.error('Error fetching AI insights:', error);
+      setInsights([{
+        id: 'error',
+        title: 'Error Generating Insights',
+        message: 'Unable to generate AI insights at this time. Please try again later.',
         type: 'warning',
-        icon: 'thermometer',
-      });
-    } else if (temperature < 32) {
-      newInsights.push({
-        id: 'temp-low',
-        title: 'Temperature Management',
-        message: 'Low temperature detected. Consider adding insulation or reducing ventilation to help the bees maintain optimal cluster temperature.',
-        type: 'warning',
-        icon: 'thermometer',
-      });
-    }
-    
-    // Add humidity-specific insights
-    const { humidity } = selectedHive.sensors;
-    if (humidity > 80) {
-      newInsights.push({
-        id: 'humidity-high',
-        title: 'Humidity Management',
-        message: 'High humidity detected. This may lead to mold growth or difficulty curing honey. Improve ventilation to reduce moisture levels.',
-        type: 'warning',
-        icon: 'water',
-      });
-    } else if (humidity < 50) {
-      newInsights.push({
-        id: 'humidity-low',
-        title: 'Humidity Management',
-        message: 'Low humidity detected. Ensure bees have access to water sources, especially during hot weather.',
-        type: 'warning',
-        icon: 'water',
-      });
-    }
-    
-    // Add varroa-specific insights
-    const { varroa } = selectedHive.sensors;
-    if (varroa > 1) {
-      newInsights.push({
-        id: 'varroa',
-        title: 'Varroa Management',
-        message: `Elevated varroa levels detected (${varroa}). Consider implementing a treatment plan soon. Monitor for signs of deformed wing virus or other varroa-related diseases.`,
-        type: varroa > 3 ? 'critical' : 'warning',
-        icon: 'bug',
-      });
-    }
-    
-    // Add weight-specific insights
-    const { weight } = selectedHive.sensors;
-    const weightHistory = selectedHive.history.weight;
-    if (weightHistory.length > 5) {
-      const recentAvg = weightHistory.slice(-3).reduce((sum, val) => sum + val, 0) / 3;
-      const previousAvg = weightHistory.slice(-6, -3).reduce((sum, val) => sum + val, 0) / 3;
-      
-      if (recentAvg - previousAvg > 3) {
-        newInsights.push({
-          id: 'weight-increase',
-          title: 'Honey Production',
-          message: 'Significant weight increase detected. The colony appears to be in a strong nectar flow. Consider adding supers if needed.',
-          type: 'healthy',
-          icon: 'trending-up',
-        });
-      } else if (previousAvg - recentAvg > 3) {
-        newInsights.push({
-          id: 'weight-decrease',
-          title: 'Weight Decrease Alert',
-          message: 'Significant weight decrease detected. This could indicate swarming, robbing, or resource consumption. Inspect the hive for population changes.',
-          type: 'warning',
-          icon: 'trending-down',
-        });
+        icon: 'alert-circle',
+      }]);
+    } finally {
+      setLoading(false);
+      // Reset eventType after generating insights
+      if (eventType) {
+        setEventType(null);
       }
     }
-    
-    // Add seasonal recommendations based on current month
-    const currentMonth = new Date().getMonth();
-    let seasonalInsight = {
-      id: 'seasonal',
-      title: 'Seasonal Recommendations',
-      type: 'healthy',
-      icon: 'calendar',
-    };
-    
-    // Spring (March-May)
-    if (currentMonth >= 2 && currentMonth <= 4) {
-      seasonalInsight.message = 'Spring management: Monitor for swarm cells, ensure adequate space for colony growth, and consider adding supers as nectar flow begins.';
-    } 
-    // Summer (June-August)
-    else if (currentMonth >= 5 && currentMonth <= 7) {
-      seasonalInsight.message = 'Summer management: Monitor for nectar flow end, check for adequate ventilation during hot weather, and begin varroa monitoring and treatment planning.';
-    } 
-    // Fall (September-November)
-    else if (currentMonth >= 8 && currentMonth <= 10) {
-      seasonalInsight.message = 'Fall management: Assess honey stores for winter, complete varroa treatments, and begin reducing entrances to prevent robbing.';
-    } 
-    // Winter (December-February)
-    else {
-      seasonalInsight.message = 'Winter management: Minimize hive disturbance, ensure adequate ventilation to prevent condensation, and monitor food stores.';
-    }
-    
-    newInsights.push(seasonalInsight);
-    
-    // Add recent notification-based insights
-    const hiveNotifications = notifications
-      .filter(n => n.hiveId === selectedHiveId)
-      .slice(0, 3);
-    
-    if (hiveNotifications.length > 0) {
-      newInsights.push({
-        id: 'notifications',
-        title: 'Recent Events Analysis',
-        message: `There have been ${hiveNotifications.length} recent alerts for this hive. Review the notifications section for details and take appropriate action.`,
-        type: hiveNotifications[0].severity === 'high' ? 'warning' : 'healthy',
-        icon: 'notifications',
-      });
-    }
-    
-    setInsights(newInsights);
   };
   
   const getInsightColor = (type) => {
     switch (type) {
       case 'critical':
-        return theme.colors.error;
+        return currentTheme.colors.error;
       case 'warning':
-        return theme.colors.warning;
+        return currentTheme.colors.warning;
       case 'healthy':
       default:
-        return theme.colors.success;
+        return currentTheme.colors.success;
     }
   };
   
   if (!selectedHive) {
     return (
-      <View style={styles.container}>
-        <Text>No hives available</Text>
+      <View style={[styles.container, { backgroundColor: currentTheme.colors.background }]}>
+        <Text style={{ color: currentTheme.colors.text }}>No hives available</Text>
       </View>
     );
   }
   
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: currentTheme.colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
+          <Ionicons name="arrow-back" size={24} color={currentTheme.colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Insights</Text>
+        <Text style={[styles.headerTitle, { color: currentTheme.colors.text }]}>AI Insights</Text>
       </View>
       
       {/* Hive Selector */}
@@ -214,14 +96,25 @@ const InsightsScreen = ({ navigation, route }) => {
             key={hive.id}
             style={[
               styles.hiveSelectorItem,
-              selectedHiveId === hive.id && styles.hiveSelectorItemActive
+              { 
+                backgroundColor: currentTheme.colors.card,
+                borderColor: currentTheme.colors.border
+              },
+              selectedHiveId === hive.id && {
+                backgroundColor: currentTheme.colors.primaryLight,
+                borderColor: currentTheme.colors.primary
+              }
             ]}
             onPress={() => setSelectedHiveId(hive.id)}
           >
             <Text 
               style={[
                 styles.hiveSelectorText,
-                selectedHiveId === hive.id && styles.hiveSelectorTextActive
+                { color: currentTheme.colors.textSecondary },
+                selectedHiveId === hive.id && { 
+                  color: currentTheme.colors.primary,
+                  fontWeight: 'bold' 
+                }
               ]}
             >
               {hive.name}
@@ -238,58 +131,60 @@ const InsightsScreen = ({ navigation, route }) => {
         variant="elevated"
       >
         <View style={styles.hiveInfo}>
-          <Text style={styles.hiveLocation}>
-            <Ionicons name="location" size={16} color={theme.colors.grey} />
+          <Text style={[styles.hiveLocation, { color: currentTheme.colors.textSecondary }]}>
+            <Ionicons name="location" size={16} color={currentTheme.colors.grey} />
             {' '}{selectedHive.location}
           </Text>
-          <Text style={styles.hiveUpdated}>
+          <Text style={[styles.hiveUpdated, { color: currentTheme.colors.grey }]}>
             Last updated: {formatDateTime(selectedHive.lastUpdated)}
           </Text>
         </View>
         
-        <View style={styles.sensorSummary}>
+        <View style={[styles.sensorSummary, { backgroundColor: currentTheme.colors.lightGrey }]}>
           <View style={styles.sensorItem}>
-            <Ionicons name="thermometer" size={16} color={theme.colors.error} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.temperature}°C</Text>
+            <Ionicons name="thermometer" size={16} color={currentTheme.colors.error} />
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.temperature}°C</Text>
           </View>
           
           <View style={styles.sensorItem}>
-            <Ionicons name="water" size={16} color={theme.colors.info} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.humidity}%</Text>
+            <Ionicons name="water" size={16} color={currentTheme.colors.info} />
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.humidity}%</Text>
           </View>
           
           <View style={styles.sensorItem}>
-            <Ionicons name="bug" size={16} color={theme.colors.warning} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.varroa}</Text>
+            <Ionicons name="bug" size={16} color={currentTheme.colors.warning} />
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.varroa}</Text>
           </View>
           
           <View style={styles.sensorItem}>
-            <Ionicons name="scale" size={16} color={theme.colors.success} />
-            <Text style={styles.sensorValue}>{selectedHive.sensors.weight} kg</Text>
+            <Ionicons name="scale" size={16} color={currentTheme.colors.success} />
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.weight} kg</Text>
           </View>
         </View>
       </Card>
       
       {/* AI Insights */}
       <View style={styles.insightsHeader}>
-        <Text style={styles.insightsTitle}>AI Analysis & Recommendations</Text>
-        {loading && <ActivityIndicator color={theme.colors.primary} />}
+        <Text style={[styles.insightsTitle, { color: currentTheme.colors.text }]}>AI Analysis & Recommendations</Text>
+        {loading && <ActivityIndicator color={currentTheme.colors.primary} />}
       </View>
       
       {loading ? (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Analyzing hive data...</Text>
+          <Text style={[styles.loadingText, { color: currentTheme.colors.grey }]}>Analyzing hive data...</Text>
         </View>
       ) : (
         insights.map(insight => (
           <Card key={insight.id} style={styles.insightCard}>
             <View style={styles.insightHeader}>
               <View style={[styles.insightIcon, { backgroundColor: getInsightColor(insight.type) }]}>
-                <Ionicons name={insight.icon} size={24} color={theme.colors.white} />
+                <Ionicons name={insight.icon} size={24} color={currentTheme.colors.white} />
               </View>
-              <Text style={styles.insightTitle}>{insight.title}</Text>
+              <Text style={[styles.insightTitle, { color: currentTheme.colors.text }]} numberOfLines={2}>{insight.title}</Text>
             </View>
-            <Text style={styles.insightMessage}>{insight.message}</Text>
+            <View style={styles.insightContent}>
+              <Text style={[styles.insightMessage, { color: currentTheme.colors.textSecondary }]}>{insight.message}</Text>
+            </View>
           </Card>
         ))
       )}
@@ -297,19 +192,22 @@ const InsightsScreen = ({ navigation, route }) => {
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
         <TouchableOpacity 
-          style={styles.actionButton}
+          style={[styles.actionButton, { backgroundColor: currentTheme.colors.primary }]}
           onPress={() => navigation.navigate('HiveDetail', { hiveId: selectedHiveId })}
         >
-          <Ionicons name="analytics" size={20} color={theme.colors.white} />
-          <Text style={styles.actionButtonText}>View Detailed Data</Text>
+          <Ionicons name="analytics" size={20} color={currentTheme.colors.white} />
+          <Text style={[styles.actionButtonText, { color: currentTheme.colors.white }]}>View Detailed Data</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}
-          onPress={() => navigation.navigate('Settings')}
+          style={[styles.actionButton, { backgroundColor: currentTheme.colors.secondary }]}
+          onPress={() => {
+            setLoading(true);
+            fetchAiInsights();
+          }}
         >
-          <Ionicons name="options" size={20} color={theme.colors.white} />
-          <Text style={styles.actionButtonText}>Adjust Thresholds</Text>
+          <Ionicons name="refresh" size={20} color={currentTheme.colors.white} />
+          <Text style={[styles.actionButtonText, { color: currentTheme.colors.white }]}>Refresh Analysis</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -417,11 +315,13 @@ const styles = StyleSheet.create({
   },
   insightCard: {
     marginBottom: theme.spacing.medium,
+    paddingVertical: theme.spacing.medium,
+    paddingHorizontal: theme.spacing.medium,
   },
   insightHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.small,
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.medium,
   },
   insightIcon: {
     width: 40,
@@ -435,11 +335,18 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.bodyLarge,
     fontWeight: 'bold',
     color: theme.colors.black,
+    flexShrink: 1,
+    width: '85%',
+  },
+  insightContent: {
+    marginLeft: 0,
   },
   insightMessage: {
     fontSize: theme.typography.bodyMedium,
     color: theme.colors.darkGrey,
     lineHeight: theme.typography.lineHeightRegular,
+    paddingLeft: 54,
+    marginTop: theme.spacing.small,
   },
   actionsContainer: {
     flexDirection: 'row',

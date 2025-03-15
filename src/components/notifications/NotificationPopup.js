@@ -5,9 +5,45 @@ import { hideNotificationPopup } from '../../redux/notificationSlice';
 import { getSeverityColor, formatDateTime } from '../../utils/helpers';
 import theme from '../../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../contexts/ThemeContext';
+
+// Fallback values in case theme is undefined
+const fallbackTheme = {
+  colors: {
+    notification: '#FFFFFF',
+    black: '#000000',
+    text: '#1D1D1D',
+    textSecondary: '#606060',
+    grey: '#9E9E9E',
+  },
+  layout: {
+    borderRadiusMedium: 8
+  },
+  spacing: {
+    medium: 16,
+    tiny: 4,
+    small: 8,
+    xlarge: 32
+  },
+  typography: {
+    bodyLarge: 16,
+    bodyMedium: 14,
+    bodySmall: 12
+  }
+};
 
 const NotificationPopup = ({ notification }) => {
   const dispatch = useDispatch();
+  const { theme: currentTheme, isDarkMode } = useTheme();
+  
+  // Ensure currentTheme and its properties are defined with fallbacks
+  const safeTheme = {
+    colors: currentTheme?.colors || fallbackTheme.colors,
+    layout: currentTheme?.layout || fallbackTheme.layout,
+    spacing: currentTheme?.spacing || fallbackTheme.spacing,
+    typography: currentTheme?.typography || fallbackTheme.typography
+  };
+  
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   
@@ -59,7 +95,25 @@ const NotificationPopup = ({ notification }) => {
   return (
     <Animated.View 
       style={[
-        styles.container, 
+        {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: safeTheme.colors.notification,
+          borderRadius: safeTheme.layout.borderRadiusMedium,
+          marginHorizontal: safeTheme.spacing.medium,
+          marginTop: safeTheme.spacing.xlarge * 2, // Extra space for status bar
+          flexDirection: 'row',
+          borderLeftWidth: 4,
+          overflow: 'hidden',
+          shadowColor: safeTheme.colors.black,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: isDarkMode ? 0.4 : 0.1,
+          shadowRadius: 6,
+          elevation: 4,
+          zIndex: 1000,
+        },
         { 
           transform: [{ translateY: slideAnim }],
           opacity: opacityAnim,
@@ -67,8 +121,16 @@ const NotificationPopup = ({ notification }) => {
         }
       ]}
     >
-      <View style={styles.iconContainer}>
-        <View style={[styles.iconBackground, { backgroundColor: severityColor }]}>
+      <View style={{
+        padding: safeTheme.spacing.medium,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          borderRadius: 50,
+          padding: safeTheme.spacing.small,
+          backgroundColor: severityColor,
+        }}>
           <Ionicons 
             name={
               notification.severity === 'high' 
@@ -83,70 +145,40 @@ const NotificationPopup = ({ notification }) => {
         </View>
       </View>
       
-      <View style={styles.contentContainer}>
-        <Text style={styles.title}>{notification.title}</Text>
-        <Text style={styles.message}>{notification.message}</Text>
-        <Text style={styles.timestamp}>{formatDateTime(notification.timestamp)}</Text>
+      <View style={{
+        flex: 1,
+        padding: safeTheme.spacing.medium,
+        paddingLeft: 0,
+      }}>
+        <Text style={{
+          fontSize: safeTheme.typography.bodyLarge,
+          fontWeight: 'bold',
+          color: safeTheme.colors.text,
+          marginBottom: safeTheme.spacing.tiny,
+        }}>{notification.title}</Text>
+        <Text style={{
+          fontSize: safeTheme.typography.bodyMedium,
+          color: safeTheme.colors.textSecondary,
+          marginBottom: safeTheme.spacing.tiny,
+        }}>{notification.message}</Text>
+        <Text style={{
+          fontSize: safeTheme.typography.bodySmall,
+          color: safeTheme.colors.grey,
+        }}>{formatDateTime(notification.timestamp)}</Text>
       </View>
       
-      <TouchableOpacity style={styles.closeButton} onPress={dismissNotification}>
-        <Ionicons name="close" size={20} color={theme.colors.grey} />
+      <TouchableOpacity 
+        style={{
+          padding: safeTheme.spacing.medium,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }} 
+        onPress={dismissNotification}
+      >
+        <Ionicons name="close" size={20} color={safeTheme.colors.grey} />
       </TouchableOpacity>
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.layout.borderRadiusMedium,
-    marginHorizontal: theme.spacing.medium,
-    marginTop: theme.spacing.xlarge * 2, // Extra space for status bar
-    flexDirection: 'row',
-    borderLeftWidth: 4,
-    overflow: 'hidden',
-    ...theme.layout.shadowProps,
-    elevation: theme.layout.elevationMedium,
-    zIndex: 1000,
-  },
-  iconContainer: {
-    padding: theme.spacing.medium,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconBackground: {
-    borderRadius: 50,
-    padding: theme.spacing.small,
-  },
-  contentContainer: {
-    flex: 1,
-    padding: theme.spacing.medium,
-    paddingLeft: 0,
-  },
-  title: {
-    fontSize: theme.typography.bodyLarge,
-    fontWeight: 'bold',
-    color: theme.colors.black,
-    marginBottom: theme.spacing.tiny,
-  },
-  message: {
-    fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
-    marginBottom: theme.spacing.tiny,
-  },
-  timestamp: {
-    fontSize: theme.typography.bodySmall,
-    color: theme.colors.grey,
-  },
-  closeButton: {
-    padding: theme.spacing.medium,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
 
 export default NotificationPopup; 

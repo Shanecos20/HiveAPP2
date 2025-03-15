@@ -3,95 +3,119 @@
  * Contains colors, typography, and spacing values
  */
 
-export const colors = {
-  // Primary colors
-  primary: '#FFC107', // Amber (honey color)
-  primaryDark: '#FFA000',
-  primaryLight: '#FFECB3',
-  
-  // Secondary colors
-  secondary: '#795548', // Brown (wood/hive color)
-  secondaryDark: '#5D4037',
-  secondaryLight: '#D7CCC8',
-  
-  // Status colors
-  success: '#4CAF50', // Green
-  warning: '#FF9800', // Orange
-  error: '#F44336', // Red
-  info: '#2196F3', // Blue
-  
-  // Neutral colors
-  white: '#FFFFFF',
-  lightGrey: '#F5F5F5',
-  grey: '#9E9E9E',
-  darkGrey: '#616161',
-  black: '#212121',
-  
-  // Background
-  background: '#FFFDF5', // Slight cream color
-  card: '#FFFFFF',
-  
-  // Transparent colors
-  transparentPrimary: 'rgba(255, 193, 7, 0.8)',
-  transparentBlack: 'rgba(0, 0, 0, 0.5)',
-  transparentWhite: 'rgba(255, 255, 255, 0.8)',
-};
-
-export const typography = {
-  // Font sizes
-  headingLarge: 24,
-  headingMedium: 20,
-  headingSmall: 18,
-  bodyLarge: 16,
-  bodyMedium: 14,
-  bodySmall: 12,
-  
-  // Font families - Using system fonts for simplicity
-  // You can replace these with custom fonts if needed
-  fontRegular: 'System',
-  fontBold: 'System',
-  
-  // Line heights
-  lineHeightTight: 1.2,
-  lineHeightRegular: 1.5,
-  lineHeightLoose: 1.8,
-};
-
-export const spacing = {
-  // Spacing values in pixels
+// Define standard spacing and layout values
+const spacing = {
   tiny: 4,
   small: 8,
   medium: 16,
   large: 24,
   xlarge: 32,
-  xxlarge: 48,
 };
 
-export const layout = {
-  // Border radius
+const layout = {
   borderRadiusSmall: 4,
   borderRadiusMedium: 8,
-  borderRadiusLarge: 16,
-  
-  // Shadow - for iOS
-  shadowProps: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  
-  // Elevation - for Android
-  elevationSmall: 2,
-  elevationMedium: 4,
-  elevationLarge: 8,
+  borderRadiusLarge: 12,
 };
 
-export const theme = {
-  colors,
-  typography,
+const typography = {
+  bodySmall: 12,
+  bodyMedium: 14,
+  bodyLarge: 16,
+  headingSmall: 18,
+  headingMedium: 22,
+  headingLarge: 26,
+  lineHeightRegular: 22,
+};
+
+// Define light theme colors - more modern, sleek palette
+const lightColors = {
+  primary: '#F9A826', // Warmer amber for honey theme
+  primaryLight: '#FFF5E1',
+  primaryDark: '#E08600',
+  secondary: '#3B8132', // Rich green
+  secondaryLight: '#E8F5E9',
+  secondaryDark: '#2A6023',
+  background: '#FAFAFA', // Lighter background
+  card: '#FFFFFF',
+  text: '#1D1D1D', // Deeper black for text
+  textSecondary: '#606060', // More muted secondary text
+  border: '#E0E0E0',
+  white: '#FFFFFF',
+  black: '#1D1D1D',
+  error: '#E53935', // Slightly muted red
+  success: '#2E7D32', // Richer green
+  info: '#1976D2', // Deeper blue
+  warning: '#F57C00', // Warmer orange
+  grey: '#9E9E9E',
+  lightGrey: '#F5F5F5',
+  darkGrey: '#606060',
+  
+  // Additional colors for UI elements
+  surface: '#FFFFFF',
+  cardHeader: '#F8F8F8',
+  divider: '#EEEEEE',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  statusBar: '#F9A826',
+  notification: '#FFFFFF',
+};
+
+// Define dark theme colors - deeper, more contrasty dark mode
+const darkColors = {
+  primary: '#F9A826', // Keep same primary color
+  primaryLight: '#3D3223', // Darker tint of primary
+  primaryDark: '#FFB84D',
+  secondary: '#4CAF50',
+  secondaryLight: '#1E3B1E',
+  secondaryDark: '#66BB6A',
+  background: '#121212', // True Material dark
+  card: '#1E1E1E', // Slightly lighter than background
+  text: '#FFFFFF',
+  textSecondary: '#B0BEC5', // Blue-grey for secondary text
+  border: '#333333',
+  white: '#FFFFFF',
+  black: '#1D1D1D',
+  error: '#EF5350', // Lighter in dark mode
+  success: '#66BB6A',
+  info: '#42A5F5',
+  warning: '#FFA726',
+  grey: '#9E9E9E',
+  lightGrey: '#2A2A2A', // Darker light grey for dark mode
+  darkGrey: '#B0BEC5', // Lighter dark grey for dark mode
+  
+  // Additional colors for UI elements
+  surface: '#1E1E1E',
+  cardHeader: '#252525',
+  divider: '#333333',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  statusBar: '#121212',
+  notification: '#252525',
+};
+
+// Create theme object with both light and dark modes
+// Make sure all properties are accessible at the top level
+const theme = {
+  // Add spacing, layout, and typography at the top level for direct access
   spacing,
   layout,
+  typography,
+  
+  // Add colors at the top level (default to light theme)
+  colors: lightColors,
+  
+  // Store both light and dark theme objects for reference
+  dark: {
+    colors: darkColors,
+    spacing,
+    layout,
+    typography,
+  },
+  light: {
+    colors: lightColors,
+    spacing,
+    layout,
+    typography,
+  }
 };
 
 export default theme; 

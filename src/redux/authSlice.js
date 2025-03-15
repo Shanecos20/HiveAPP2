@@ -6,6 +6,11 @@ const initialState = {
   error: null,
   userType: null, // 'hobbyist' or 'commercial'
   isLoading: false, // For simulating loading states during authentication
+  appSettings: {
+    darkMode: false,
+    pushNotifications: true,
+    dataSync: true,
+  }
 };
 
 // Simulated user data for demo purposes
@@ -82,6 +87,24 @@ const authSlice = createSlice({
     setUserType: (state, action) => {
       state.userType = action.payload;
     },
+    login: (state, action) => {
+      state.isAuthenticated = true;
+      state.isLoading = false;
+      state.user = action.payload;
+      state.error = null;
+    },
+    loginDemo: (state, action) => {
+      state.isAuthenticated = true;
+      state.isLoading = false;
+      state.user = action.payload;
+      state.error = null;
+    },
+    updateAppSettings: (state, action) => {
+      state.appSettings = {
+        ...state.appSettings,
+        ...action.payload,
+      };
+    },
   },
 });
 
@@ -145,7 +168,9 @@ export const {
   registerStart,
   registerSuccess,
   registerFailure,
-  setUserType
+  setUserType,
+  loginDemo,
+  updateAppSettings
 } = authSlice.actions;
 
 export default authSlice.reducer; 

@@ -6,10 +6,12 @@ import { formatDateTime, getSeverityColor } from '../utils/helpers';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
+import { useTheme } from '../contexts/ThemeContext';
 
 const NotificationsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { notifications } = useSelector(state => state.notifications);
+  const { theme: currentTheme, isDarkMode } = useTheme();
   
   const handleMarkAsRead = (id) => {
     dispatch(markAsRead(id));
@@ -42,7 +44,10 @@ const NotificationsScreen = ({ navigation }) => {
       <TouchableOpacity 
         style={[
           styles.notificationItem,
-          !item.read && styles.unreadNotification
+          !item.read && styles.unreadNotification,
+          { backgroundColor: !item.read 
+            ? currentTheme?.colors?.primaryLight || theme.colors.primaryLight 
+            : currentTheme?.colors?.card || theme.colors.white }
         ]}
         onPress={() => handleNotificationPress(item)}
       >
@@ -50,11 +55,26 @@ const NotificationsScreen = ({ navigation }) => {
         
         <View style={styles.notificationContent}>
           <View style={styles.notificationHeader}>
-            <Text style={styles.notificationTitle}>{item.title}</Text>
-            <Text style={styles.notificationTime}>{formatDateTime(item.timestamp)}</Text>
+            <Text style={[
+              styles.notificationTitle,
+              { color: currentTheme?.colors?.text || theme.colors.black }
+            ]}>
+              {item.title}
+            </Text>
+            <Text style={[
+              styles.notificationTime,
+              { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
+            ]}>
+              {formatDateTime(item.timestamp)}
+            </Text>
           </View>
           
-          <Text style={styles.notificationMessage}>{item.message}</Text>
+          <Text style={[
+            styles.notificationMessage,
+            { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+          ]}>
+            {item.message}
+          </Text>
           
           <View style={styles.notificationActions}>
             {!item.read && (
@@ -62,8 +82,12 @@ const NotificationsScreen = ({ navigation }) => {
                 style={styles.actionButton}
                 onPress={() => handleMarkAsRead(item.id)}
               >
-                <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
-                <Text style={styles.actionText}>Mark as Read</Text>
+                <Text style={[
+                  styles.actionButtonText,
+                  { color: currentTheme?.colors?.primary || theme.colors.primary }
+                ]}>
+                  Mark as Read
+                </Text>
               </TouchableOpacity>
             )}
             
@@ -71,8 +95,12 @@ const NotificationsScreen = ({ navigation }) => {
               style={styles.actionButton}
               onPress={() => handleDismiss(item.id)}
             >
-              <Ionicons name="close-circle" size={16} color={theme.colors.grey} />
-              <Text style={styles.actionText}>Dismiss</Text>
+              <Text style={[
+                styles.actionButtonText,
+                { color: currentTheme?.colors?.error || theme.colors.error }
+              ]}>
+                Dismiss
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -82,31 +110,60 @@ const NotificationsScreen = ({ navigation }) => {
   
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="notifications-off" size={64} color={theme.colors.grey} />
-      <Text style={styles.emptyText}>No notifications yet</Text>
-      <Text style={styles.emptySubtext}>
+      <Ionicons 
+        name="notifications-off" 
+        size={64} 
+        color={currentTheme?.colors?.textSecondary || theme.colors.grey} 
+      />
+      <Text style={[
+        styles.emptyText,
+        { color: currentTheme?.colors?.text || theme.colors.black }
+      ]}>
+        No notifications yet
+      </Text>
+      <Text style={[
+        styles.emptySubtext,
+        { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+      ]}>
         When you receive notifications about your hives, they will appear here.
       </Text>
     </View>
   );
   
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
+    ]}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.black} />
+          <Ionicons 
+            name="arrow-back" 
+            size={24} 
+            color={currentTheme?.colors?.text || theme.colors.black} 
+          />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={[
+          styles.headerTitle,
+          { color: currentTheme?.colors?.text || theme.colors.black }
+        ]}>
+          Notifications
+        </Text>
         
         {notifications.length > 0 && (
           <TouchableOpacity 
             style={styles.markAllButton}
             onPress={handleMarkAllAsRead}
           >
-            <Text style={styles.markAllText}>Mark All as Read</Text>
+            <Text style={[
+              styles.markAllText,
+              { color: currentTheme?.colors?.primary || theme.colors.primary }
+            ]}>
+              Mark All as Read
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -120,7 +177,10 @@ const NotificationsScreen = ({ navigation }) => {
       />
       
       <Card title="Test Notifications" style={styles.testCard}>
-        <Text style={styles.testCardText}>
+        <Text style={[
+          styles.testCardText,
+          { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+        ]}>
           Use the Settings screen to trigger test notifications for different events.
         </Text>
       </Card>
@@ -131,7 +191,6 @@ const NotificationsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
     padding: theme.spacing.medium,
   },
   header: {
@@ -210,7 +269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: theme.spacing.medium,
   },
-  actionText: {
+  actionButtonText: {
     fontSize: theme.typography.bodySmall,
     color: theme.colors.darkGrey,
     marginLeft: theme.spacing.tiny,
