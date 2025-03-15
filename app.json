@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "hiveapp",
+    "name": "HiveApp",
     "slug": "hiveapp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,21 +8,26 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFDF5"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFFDF5"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "description": "A smart beekeeping management app for monitoring hive health and receiving AI-powered insights.",
+    "primaryColor": "#FFC107"
   }
 }
