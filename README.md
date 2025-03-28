@@ -10,6 +10,8 @@ HiveApp is a React Native mobile application designed for beekeepers to monitor 
 - **Notifications Center**: In-app notifications with timestamps and action buttons
 - **Settings**: Configure notification thresholds and test different notification types
 - **User Authentication**: Support for both hobbyist and commercial beekeepers
+- **Data Persistence**: All hive data, settings, and user preferences are saved locally
+- **Dark Mode**: Full support for system and user-selected dark theme
 
 ## Demo Credentials
 
@@ -63,8 +65,10 @@ hiveapp/
 ├── assets/              # Images, fonts, and other static assets
 ├── src/
 │   ├── components/      # Reusable UI components
+│   ├── contexts/        # React contexts including ThemeContext
 │   ├── redux/           # Redux store, slices, and actions
 │   ├── screens/         # App screens
+│   ├── services/        # Service modules for AI, database, etc.
 │   └── utils/           # Helper functions and theme
 ├── App.js               # Main app component
 └── app.json             # Expo configuration
@@ -75,9 +79,29 @@ hiveapp/
 - React Native
 - Expo
 - Redux Toolkit
+- Redux Persist
+- AsyncStorage
 - React Navigation
 - React Native Chart Kit
 - React Native Vector Icons
+
+## Data Persistence
+
+HiveApp implements a comprehensive data persistence system:
+
+- **Redux Persist**: Used to persist the entire Redux store state across app restarts
+- **AsyncStorage**: The underlying storage mechanism for saving data on the device
+- **Database Service**: A service layer that provides abstractions for data operations
+- **Automatic Sync**: Data changes are automatically saved to persistent storage
+- **Unity Integration**: Prepared for integration with Unity-based simulations (future)
+
+The database service (`databaseService.js`) provides these key features:
+
+- Saving and retrieving hive data
+- Managing user settings
+- Registering IoT devices with hives
+- Support for future remote database integration
+- Data export and import capabilities
 
 ## Simulated Features
 
@@ -87,6 +111,14 @@ Since this is a demo application without a real backend or hardware integration,
 - Notifications are triggered by simulated events
 - AI insights are generated based on predefined rules
 - User authentication uses mock data
+
+## AI Integration
+
+The app includes AI feature support:
+
+- **Local Mock AI**: When running on a mobile device, the app uses sophisticated mock responses
+- **Ollama Integration**: When running on a desktop/development environment, can connect to Ollama for LLM capabilities
+- **Insight Generation**: Provides actionable insights based on hive conditions, trends, and events
 
 ## License
 

@@ -28,6 +28,31 @@ const typography = {
   lineHeightRegular: 22,
 };
 
+// Define shadows for elevation
+const shadows = {
+  small: {
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  medium: {
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.23,
+    shadowRadius: 2.62,
+  },
+  large: {
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
+};
+
 // Define light theme colors - more modern, sleek palette
 const lightColors = {
   primary: '#F9A826', // Warmer amber for honey theme
@@ -99,6 +124,7 @@ const theme = {
   spacing,
   layout,
   typography,
+  shadows,
   
   // Add colors at the top level (default to light theme)
   colors: lightColors,
@@ -109,12 +135,14 @@ const theme = {
     spacing,
     layout,
     typography,
+    shadows,
   },
   light: {
     colors: lightColors,
     spacing,
     layout,
     typography,
+    shadows,
   }
 };
 

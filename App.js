@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Provider } from 'react-redux';
-import { store } from './src/redux/store';
+import { Provider, useDispatch } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import { store, persistor } from './src/redux/store';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
@@ -24,11 +25,40 @@ import EditHiveScreen from './src/screens/EditHiveScreen';
 import NotificationPopup from './src/components/notifications/NotificationPopup';
 import CustomTabBar from './src/components/navigation/CustomTabBar';
 
+// Import services and actions
+import databaseService from './src/services/databaseService';
+import { fetchHives } from './src/redux/hiveSlice';
+
 // Import theme
 import theme from './src/utils/theme';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// App initialization component
+const AppInitializer = ({ children }) => {
+  const dispatch = useDispatch();
+  
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Initialize database service
+        await databaseService.initialize();
+        
+        // Load hives data from persistent storage
+        dispatch(fetchHives());
+        
+        console.log('App initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      }
+    };
+    
+    initializeApp();
+  }, [dispatch]);
+  
+  return children;
+};
 
 // Notification wrapper component with theme support
 const NotificationWrapper = ({ children }) => {
@@ -116,6 +146,7 @@ const AppNavigator = () => {
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="HiveDetail" component={HiveDetailScreen} />
             <Stack.Screen name="EditHive" component={EditHiveScreen} />
+            <Stack.Screen name="AddHive" component={EditHiveScreen} />
             <Stack.Screen name="Insights" component={InsightsScreen} />
           </>
         )}
@@ -128,14 +159,18 @@ const AppNavigator = () => {
 export default function App() {
   return (
     <Provider store={store}>
-      <ThemeProvider>
-        <SafeAreaProvider>
-          <ThemedStatusBar />
-          <NotificationWrapper>
-            <AppNavigator />
-          </NotificationWrapper>
-        </SafeAreaProvider>
-      </ThemeProvider>
+      <PersistGate loading={null} persistor={persistor}>
+        <ThemeProvider>
+          <SafeAreaProvider>
+            <ThemedStatusBar />
+            <AppInitializer>
+              <NotificationWrapper>
+                <AppNavigator />
+              </NotificationWrapper>
+            </AppInitializer>
+          </SafeAreaProvider>
+        </ThemeProvider>
+      </PersistGate>
     </Provider>
   );
 }

@@ -78,8 +78,8 @@ const HiveDetailScreen = ({ route, navigation }) => {
   
   // Dynamic chart config based on current theme
   const chartConfig = {
-    backgroundGradientFrom: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white,
-    backgroundGradientTo: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white,
+    backgroundGradientFrom: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white,
+    backgroundGradientTo: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white,
     decimalPlaces: 1,
     color: (opacity = 1) => isDarkMode 
       ? `rgba(255, 255, 255, ${opacity})` 
@@ -91,9 +91,9 @@ const HiveDetailScreen = ({ route, navigation }) => {
       borderRadius: 16,
     },
     propsForDots: {
-      r: '4',
-      strokeWidth: '1',
-      stroke: currentTheme?.colors?.primary || theme.colors.primary,
+      r: '5',
+      strokeWidth: '2',
+      stroke: isDarkMode ? "#fff" : currentTheme?.colors?.primary || theme.colors.primary,
     },
   };
 
@@ -163,7 +163,12 @@ const HiveDetailScreen = ({ route, navigation }) => {
       </View>
       
       {/* Temperature Chart */}
-      <Card title="Temperature">
+      <Card 
+        title="Temperature"
+        style={{ 
+          backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white 
+        }}
+      >
         <View style={styles.sensorHeader}>
           <View style={styles.currentValue}>
             <Text style={[
@@ -199,7 +204,12 @@ const HiveDetailScreen = ({ route, navigation }) => {
       </Card>
       
       {/* Humidity Chart */}
-      <Card title="Humidity">
+      <Card 
+        title="Humidity"
+        style={{ 
+          backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white 
+        }}
+      >
         <View style={styles.sensorHeader}>
           <View style={styles.currentValue}>
             <Text style={[
@@ -235,7 +245,12 @@ const HiveDetailScreen = ({ route, navigation }) => {
       </Card>
       
       {/* Varroa Chart */}
-      <Card title="Varroa Mite Index">
+      <Card 
+        title="Varroa Mite Index"
+        style={{ 
+          backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white 
+        }}
+      >
         <View style={styles.sensorHeader}>
           <View style={styles.currentValue}>
             <Text style={[
@@ -271,7 +286,12 @@ const HiveDetailScreen = ({ route, navigation }) => {
       </Card>
       
       {/* Weight Chart */}
-      <Card title="Weight">
+      <Card 
+        title="Weight"
+        style={{ 
+          backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white 
+        }}
+      >
         <View style={styles.sensorHeader}>
           <View style={styles.currentValue}>
             <Text style={[

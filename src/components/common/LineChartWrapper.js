@@ -8,6 +8,15 @@ import { LineChart } from 'react-native-chart-kit';
  * - On native: Passes through normally
  */
 const LineChartWrapper = (props) => {
+  // Create a safe copy of the data to prevent mutations
+  const safeData = {
+    ...props.data,
+    datasets: props.data.datasets.map(dataset => ({
+      ...dataset,
+      data: [...dataset.data]
+    }))
+  };
+
   // Web-specific props to silence the responder warnings
   const webProps = Platform.OS === 'web' ? {
     // Style override to make chart work better on web
@@ -34,6 +43,7 @@ const LineChartWrapper = (props) => {
     }}>
       <LineChart
         {...props}
+        data={safeData}
         {...webProps}
       />
     </View>

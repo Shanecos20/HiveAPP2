@@ -1,53 +1,70 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import databaseService from '../services/databaseService';
 
-// Mock data for simulated hives
-const initialHives = [
-  {
-    id: '1',
-    name: 'Hive Alpha',
-    location: 'North Field',
-    sensors: {
-      temperature: 35.2,
-      humidity: 65,
-      varroa: 0.5,
-      weight: 72.3,
-    },
-    status: 'healthy', // healthy, warning, critical
-    lastUpdated: new Date().toISOString(),
-    history: {
-      temperature: [34, 35, 34.5, 35.2],
-      humidity: [67, 65, 66, 65],
-      varroa: [0.3, 0.4, 0.45, 0.5],
-      weight: [70.5, 71.0, 71.8, 72.3],
-    },
-  },
-  {
-    id: '2',
-    name: 'Hive Beta',
-    location: 'South Garden',
-    sensors: {
-      temperature: 33.8,
-      humidity: 72,
-      varroa: 1.2,
-      weight: 68.5,
-    },
-    status: 'warning', // higher varroa levels
-    lastUpdated: new Date().toISOString(),
-    history: {
-      temperature: [33, 33.5, 33.7, 33.8],
-      humidity: [70, 71, 71.5, 72],
-      varroa: [0.8, 0.9, 1.1, 1.2],
-      weight: [67.0, 67.5, 68.0, 68.5],
-    },
-  },
-];
+// Initial state with empty hives array
+const initialState = {
+  hives: [],
+  selectedHiveId: null,
+  loading: false,
+  error: null,
+  lastSynced: null
+};
 
+// Async thunk to load hives from the database
+export const fetchHives = createAsyncThunk(
+  'hives/fetchHives',
+  async (_, { rejectWithValue }) => {
+    try {
+      // Initialize the database service if needed
+      if (!databaseService.isInitialized) {
+        await databaseService.initialize();
+      }
+      const hives = await databaseService.getHives();
+      return hives;
+    } catch (error) {
+      return rejectWithValue('Failed to fetch hives: ' + error.message);
+    }
+  }
+);
+
+// Async thunk to save a hive to the database
+export const saveHive = createAsyncThunk(
+  'hives/saveHive',
+  async (hive, { rejectWithValue }) => {
+    try {
+      const success = await databaseService.updateHive(hive);
+      if (success) {
+        return hive;
+      } else {
+        return rejectWithValue('Failed to save hive');
+      }
+    } catch (error) {
+      return rejectWithValue('Error saving hive: ' + error.message);
+    }
+  }
+);
+
+// Async thunk to delete a hive from the database
+export const deleteHive = createAsyncThunk(
+  'hives/deleteHive',
+  async (hiveId, { rejectWithValue }) => {
+    try {
+      const success = await databaseService.deleteHive(hiveId);
+      if (success) {
+        return hiveId;
+      } else {
+        return rejectWithValue('Failed to delete hive');
+      }
+    } catch (error) {
+      return rejectWithValue('Error deleting hive: ' + error.message);
+    }
+  }
+);
+
+// Create the hive slice
 const hiveSlice = createSlice({
   name: 'hives',
-  initialState: {
-    hives: initialHives,
-    selectedHiveId: '1',
-  },
+  initialState,
   reducers: {
     updateHiveSensor: (state, action) => {
       const { hiveId, sensorType, value } = action.payload;
@@ -71,41 +88,13 @@ const hiveSlice = createSlice({
         
         // Update hive status based on sensor values
         hive.status = determineHiveStatus(hive);
+        
+        // Save changes to the database (handled in middleware)
+        state.needsSyncing = true;
       }
     },
     selectHive: (state, action) => {
       state.selectedHiveId = action.payload;
-    },
-    addHive: (state, action) => {
-      state.hives.push({
-        id: Date.now().toString(),
-        name: action.payload.name,
-        location: action.payload.location,
-        sensors: {
-          temperature: 0,
-          humidity: 0,
-          varroa: 0,
-          weight: 0,
-        },
-        status: 'unknown',
-        lastUpdated: new Date().toISOString(),
-        history: {
-          temperature: [],
-          humidity: [],
-          varroa: [],
-          weight: [],
-        },
-      });
-    },
-    removeHive: (state, action) => {
-      state.hives = state.hives.filter(hive => hive.id !== action.payload);
-      
-      // If the removed hive was selected, select the first available hive
-      if (state.selectedHiveId === action.payload && state.hives.length > 0) {
-        state.selectedHiveId = state.hives[0].id;
-      } else if (state.hives.length === 0) {
-        state.selectedHiveId = null;
-      }
     },
     simulateHiveEvent: (state, action) => {
       const { hiveId, eventType } = action.payload;
@@ -138,6 +127,9 @@ const hiveSlice = createSlice({
         // Update status and last updated time
         hive.status = determineHiveStatus(hive);
         hive.lastUpdated = new Date().toISOString();
+        
+        // Mark for syncing
+        state.needsSyncing = true;
       }
     },
     updateHive: (state, action) => {
@@ -149,9 +141,83 @@ const hiveSlice = createSlice({
         state.hives[hiveIndex].location = location;
         state.hives[hiveIndex].notes = notes;
         state.hives[hiveIndex].lastUpdated = new Date().toISOString();
+        
+        // Mark for syncing
+        state.needsSyncing = true;
       }
     },
   },
+  extraReducers: (builder) => {
+    builder
+      // Handle fetchHives
+      .addCase(fetchHives.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchHives.fulfilled, (state, action) => {
+        state.hives = action.payload;
+        state.loading = false;
+        state.error = null;
+        state.lastSynced = new Date().toISOString();
+        
+        // If we have hives and none selected, select the first one
+        if (state.hives.length > 0 && !state.selectedHiveId) {
+          state.selectedHiveId = state.hives[0].id;
+        }
+      })
+      .addCase(fetchHives.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch hives';
+      })
+      
+      // Handle saveHive
+      .addCase(saveHive.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(saveHive.fulfilled, (state, action) => {
+        const updatedHive = action.payload;
+        const index = state.hives.findIndex(h => h.id === updatedHive.id);
+        
+        if (index !== -1) {
+          state.hives[index] = updatedHive;
+        } else {
+          state.hives.push(updatedHive);
+        }
+        
+        state.loading = false;
+        state.lastSynced = new Date().toISOString();
+        state.needsSyncing = false;
+      })
+      .addCase(saveHive.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to save hive';
+      })
+      
+      // Handle deleteHive
+      .addCase(deleteHive.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteHive.fulfilled, (state, action) => {
+        const hiveId = action.payload;
+        state.hives = state.hives.filter(hive => hive.id !== hiveId);
+        
+        // If the removed hive was selected, select the first available hive
+        if (state.selectedHiveId === hiveId && state.hives.length > 0) {
+          state.selectedHiveId = state.hives[0].id;
+        } else if (state.hives.length === 0) {
+          state.selectedHiveId = null;
+        }
+        
+        state.loading = false;
+        state.lastSynced = new Date().toISOString();
+      })
+      .addCase(deleteHive.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to delete hive';
+      });
+  }
 });
 
 // Helper function to determine hive status based on sensor values
@@ -175,8 +241,6 @@ function determineHiveStatus(hive) {
 export const { 
   updateHiveSensor, 
   selectHive, 
-  addHive,
-  removeHive,
   simulateHiveEvent,
   updateHive
 } = hiveSlice.actions;
