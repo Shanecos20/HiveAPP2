@@ -1,27 +1,28 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-// Configure the base URL for Ollama API
-// When testing in an emulator or real device, use your computer's actual IP address
-// Find your IP address by running 'ipconfig' in command prompt (Windows) or 'ifconfig' on Mac/Linux
-const OLLAMA_BASE_URL = 'http://192.168.1.11:11434/api'; 
-// If using a real device on the same WiFi network as your computer, use your computer's local IP:
-// const OLLAMA_BASE_URL = 'http://192.168.x.x:11434/api'; // Replace with your actual IP
+// Configure the base URL for your local proxy server
+// --- IMPORTANT ---
+// Find your computer's local IP address:
+// - Windows: Run 'ipconfig' in Command Prompt and look for 'IPv4 Address' under your active network adapter (Wi-Fi or Ethernet).
+// - macOS: Run 'ifconfig | grep "inet "' in Terminal and look for the 'inet' address (usually starting with 192.168.x.x or 10.x.x.x).
+// - Linux: Run 'ip addr show' in Terminal and look for the 'inet' address under your active network interface.
+//
+// Replace 'YOUR_COMPUTER_IP_ADDRESS' with the actual IP you found.
+// The port (3003) should match the SERVER_PORT in your server/.env file.
+const PROXY_SERVER_BASE_URL = `http://192.168.1.5:3001/api`; // <-- Ensure port is 3001
 
-// The model to use - change this if you have pulled a different model
-// Recommended models for better JSON formatting:
-// - llama2 (better at following instructions)
-// - codellama (good at generating structured outputs like JSON)
-// - mistral (good general performance)
-const AI_MODEL = 'llama2';
+// --- DEVELOPMENT ONLY ---
+// For testing on an emulator/simulator running on the SAME machine as the server, you might use localhost:
+// const PROXY_SERVER_BASE_URL = 'http://localhost:3001/api';
 
-// Flag to use mock responses
-// Always use mock responses on mobile devices
-const USE_MOCK_RESPONSES = Platform.OS === 'ios' || Platform.OS === 'android';
+// Flag to use mock responses (can be useful if server isn't running or for offline dev)
+const USE_MOCK_RESPONSES = false; // Set to true to force mock data
 
 // Log the platform and mock response setting
 console.log(`Running on platform: ${Platform.OS}`);
 console.log(`Using mock responses: ${USE_MOCK_RESPONSES}`);
+console.log(`Proxy Server URL: ${PROXY_SERVER_BASE_URL}`);
 
 // Function to generate prompts based on hive data
 const generatePrompt = (hiveData, eventType) => {
@@ -89,234 +90,202 @@ DO NOT include YouTube links in your responses.`;
 };
 
 // Parse AI response to extract valid JSON
-const parseAiResponse = (response) => {
+const parseAiResponse = (responseContent) => {
   try {
-    // Try to extract JSON from the response
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      let jsonStr = jsonMatch[0];
-      
-      // Clean up potential formatting issues
-      // Check for trailing commas followed by a closing bracket
-      jsonStr = jsonStr.replace(/,(\s*[\]}])/g, '$1');
-      
-      // Remove any ellipses or comments that might be inside the JSON
-      jsonStr = jsonStr.replace(/\.\.\..*?"/g, '"');
-      jsonStr = jsonStr.replace(/\.\.\..*?}/g, '}');
-      jsonStr = jsonStr.replace(/\.\.\..*?]/g, ']');
-      
-      // Remove any trailing incomplete entries
-      if (jsonStr.includes('...more')) {
-        const lastValidBracket = jsonStr.lastIndexOf('}');
-        if (lastValidBracket > 0) {
-          const lastValidComma = jsonStr.lastIndexOf('},', lastValidBracket);
-          if (lastValidComma > 0) {
-            jsonStr = jsonStr.substring(0, lastValidComma + 1) + ']';
-          }
-        }
-      }
-      
-      // Log the sanitized JSON for debugging
-      console.log('Sanitized JSON:', jsonStr.substring(0, 100) + (jsonStr.length > 100 ? '...' : ''));
-      
-      return JSON.parse(jsonStr);
+    // Deepseek response is expected to be directly in the 'content' field
+    // Attempt to parse the content directly as JSON
+    console.log('Attempting to parse AI response content:', responseContent.substring(0, 100) + '...');
+    let insights = JSON.parse(responseContent);
+
+    // Basic validation
+    if (!Array.isArray(insights)) {
+      throw new Error('Parsed response is not an array');
     }
-    throw new Error('No valid JSON found in response');
+    if (insights.length === 0) {
+       console.warn('Parsed response is an empty array.');
+       // You might return an empty array or a default message here
+       // return []; // Option 1: return empty array
+       return [{ id: 'no-insights', title: 'No Specific Insights', message: 'AI analysis complete, no specific issues detected.', type: 'healthy', icon: 'information-circle' }]; // Option 2: Default message
+    }
+
+    // Further validation (check for required fields in the first item)
+    if (!insights[0].id || !insights[0].title || !insights[0].message || !insights[0].type || !insights[0].icon) {
+       console.warn('Parsed insights might be missing required fields.');
+    }
+
+
+    // Clean up potential formatting issues (less likely needed if model follows instructions well)
+    // Remove this section if Deepseek consistently returns clean JSON
+    // insights = insights.map(insight => {
+    //   // Example: Trim whitespace from strings
+    //   if (insight.title) insight.title = insight.title.trim();
+    //   if (insight.message) insight.message = insight.message.trim();
+    //   return insight;
+    // });
+
+    console.log('Successfully parsed JSON from AI response content.');
+    return insights;
+
   } catch (error) {
-    console.error('Error parsing AI response:', error);
-    
-    // Generate a single insight with the raw response for the user
+    console.error('Error parsing AI response content:', error);
+    console.error('Raw response content received:', responseContent); // Log the raw content
+
+    // Attempt to extract JSON array even if parsing failed initially (e.g., if wrapped in text)
+    const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      try {
+        console.log('Attempting to parse extracted JSON string...');
+        let jsonStr = jsonMatch[0];
+         // Basic cleanup for trailing commas, etc. (similar to original)
+        jsonStr = jsonStr.replace(/,(\s*[\]}])/g, '$1');
+        const extractedInsights = JSON.parse(jsonStr);
+        if (Array.isArray(extractedInsights) && extractedInsights.length > 0) {
+           console.log('Successfully parsed extracted JSON string.');
+           return extractedInsights; // Return the extracted array if valid
+        }
+      } catch (extractError) {
+         console.error('Error parsing extracted JSON string:', extractError);
+      }
+    }
+
+
+    // Fallback: Return a single insight with the raw response for debugging
     return [{
-      id: 'ai-response',
-      title: 'AI Analysis',
-      message: response,
-      type: 'healthy',
-      icon: 'analytics',
+      id: 'ai-parse-error',
+      title: 'AI Response Format Issue',
+      message: `Could not parse the AI's response. Raw response: ${responseContent.substring(0, 200)}...`, // Show beginning of raw response
+      type: 'warning',
+      icon: 'alert-circle',
     }];
   }
 };
 
-// Helper function to check if Ollama is running
-const isOllamaRunning = async () => {
+// Helper function to check if the proxy server is running
+const isProxyServerRunning = async () => {
   try {
-    const response = await axios.get(`${OLLAMA_BASE_URL}/tags`, { timeout: 30000 });
+    // Use a simple GET request to the server's root or a dedicated health endpoint
+    const response = await axios.get(PROXY_SERVER_BASE_URL.replace('/api', ''), { timeout: 5000 }); // Check base URL
     return response.status === 200;
   } catch (error) {
-    console.log('Ollama check failed:', error.message);
+    console.log('Proxy server check failed:', error.message);
     return false;
   }
 };
 
-// Helper function to check if the model is available
-const isModelAvailable = async (modelName) => {
-  try {
-    // Just try to run a simple query with the model
-    const testResponse = await axios.post(`${OLLAMA_BASE_URL}/generate`, {
-      model: modelName,
-      prompt: "Hello",
-      stream: false,
-      options: {
-        temperature: 0.7,
-        top_p: 0.9,
-        max_tokens: 10,
-      }
-    }, { timeout: 5000 });
-    
-    // If we got here without error, the model is available
-    console.log(`Model ${modelName} test successful`);
-    return true;
-  } catch (error) {
-    console.log(`Model ${modelName} test failed:`, error.message);
-    // If the error contains "model not found", we know the model isn't available
-    if (error.response && error.response.data && error.response.data.error) {
-      const errorMsg = error.response.data.error.toLowerCase();
-      if (errorMsg.includes('model not found') || errorMsg.includes('failed to load model')) {
-        return false;
-      }
-    }
-    // For other errors (network issues, etc.), assume the model might be available
-    // This will let the main function try to use it anyway
-    return true;
-  }
-};
-
-// Function to get AI insights using Ollama
+// Function to get AI insights using the proxy server
 export const getAiInsights = async (hiveData, eventType = null) => {
   try {
-    console.log('Attempting to generate AI insights for', hiveData.name);
-    
-    // Use mock responses while setting up
+    console.log(`Attempting to generate AI insights for ${hiveData.name} via proxy server`);
+
     if (USE_MOCK_RESPONSES) {
-      console.log('Using mock responses while Ollama is being set up');
+      console.log('USE_MOCK_RESPONSES is true, using mock data.');
       return await generateMockAiResponse(hiveData, eventType);
     }
-    
-    // First, check if Ollama is running
-    const ollamaAvailable = await isOllamaRunning();
-    
-    if (!ollamaAvailable) {
-      console.log('Ollama not available, using mock responses');
-      return await generateMockAiResponse(hiveData, eventType);
-    }
-    
-    // Check if the required model is available
-    const modelAvailable = await isModelAvailable(AI_MODEL);
-    if (!modelAvailable) {
-      console.log(`Model ${AI_MODEL} not available, using mock responses`);
-      return await generateMockAiResponse(hiveData, eventType);
-    }
-    
-    // Attempt to use Ollama API
-    try {
-      console.log('Generating insights using Ollama model:', AI_MODEL);
-      const prompt = generatePrompt(hiveData, eventType);
-      console.log('Sending prompt to Ollama...');
-      
-      const response = await axios.post(`${OLLAMA_BASE_URL}/generate`, {
-        model: AI_MODEL,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.7,
-          top_p: 0.9,
-          max_tokens: 1500,
-        }
-      }, { timeout: 60000 }); // 60 second timeout for longer responses
-      
-      if (response.data && response.data.response) {
-        console.log('Successfully received Ollama response');
-        console.log('Response length:', response.data.response.length);
-        
-        // Debug first part of response
-        console.log('Response preview:', response.data.response.substring(0, 100) + '...');
-        
-        // Clean up the response to ensure it's properly formatted for JSON parsing
-        let cleanedResponse = response.data.response;
-        
-        // Extract just the JSON array if there's text before or after it
-        const jsonMatch = cleanedResponse.match(/\[\s*{[\s\S]*}\s*\]/);
-        if (jsonMatch) {
-          cleanedResponse = jsonMatch[0];
-        }
-        
-        // Make sure the response has opening and closing brackets
-        if (!cleanedResponse.trim().startsWith('[')) {
-          cleanedResponse = '[' + cleanedResponse;
-        }
-        if (!cleanedResponse.trim().endsWith(']')) {
-          cleanedResponse = cleanedResponse + ']';
-        }
-        
-        const insights = parseAiResponse(cleanedResponse);
-        if (insights && insights.length > 0) {
-          // Add icons if missing
+
+    // Optional: Check if proxy server is running first (adds slight delay)
+    // const serverAvailable = await isProxyServerRunning();
+    // if (!serverAvailable) {
+    //   console.log('Proxy server not available, using mock responses.');
+    //   return await generateMockAiResponse(hiveData, eventType);
+    // }
+
+    // Generate the prompt
+    const prompt = generatePrompt(hiveData, eventType);
+    console.log('Sending prompt to proxy server...');
+
+    // Call the proxy server's /api/chat endpoint
+    const response = await axios.post(
+      `${PROXY_SERVER_BASE_URL}/chat`,
+      { prompt: prompt }, // Send prompt in the request body
+      { timeout: 90000 } // Increase timeout (e.g., 90 seconds) for potentially longer AI generation
+    );
+
+    // The proxy server returns the 'message' object from OpenRouter's response
+    if (response.data && response.data.content) {
+      console.log('Successfully received response from proxy server.');
+      // console.log('Raw response content:', response.data.content); // For debugging
+
+      // Parse the JSON content string from the response
+      const insights = parseAiResponse(response.data.content);
+
+      if (insights && insights.length > 0 && insights[0].id !== 'ai-parse-error') {
+          // Add icons if missing (optional, keep if needed)
           const insightsWithIcons = insights.map(insight => {
-            // Set a default icon based on the insight type if missing or invalid
             const validIcons = [
-              'warning', 'bug', 'thermometer', 'water', 'analytics', 
-              'medkit', 'trending-up', 'trending-down', 'calendar', 
-              'information-circle', 'bulb'
+              'warning', 'bug', 'thermometer', 'water', 'analytics',
+              'medkit', 'trending-up', 'trending-down', 'calendar',
+              'information-circle', 'bulb', 'alert-circle', 'checkmark-circle',
+              'snow', 'umbrella', 'scale', 'build' // Added icons from mock data
             ];
-            
+
             if (!insight.icon || !validIcons.includes(insight.icon)) {
-              // Assign default icons based on type
-              if (insight.type === 'critical') {
-                insight.icon = 'warning';
-              } else if (insight.type === 'warning') {
-                insight.icon = 'alert-circle';
-              } else {
-                insight.icon = 'analytics';
-              }
+              if (insight.type === 'critical') insight.icon = 'warning';
+              else if (insight.type === 'warning') insight.icon = 'alert-circle';
+              else insight.icon = 'information-circle'; // Default to info
             }
-            
-            // Make sure type is one of the valid types
+             // Make sure type is one of the valid types
             if (!['critical', 'warning', 'healthy'].includes(insight.type)) {
-              // Default to warning if not a valid type
-              insight.type = 'warning';
+              insight.type = 'warning'; // Default to warning
             }
-            
+            // Ensure unique IDs (simple approach using index if model doesn't provide unique ones)
+             if (!insight.id) {
+               insight.id = `insight-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+            }
+
             return insight;
           });
-          
-          // De-duplicate insights (in case the model repeats itself)
+
+          // De-duplicate insights (optional, keep if needed)
           const uniqueInsights = [];
           const seenTitles = new Set();
-          
           for (const insight of insightsWithIcons) {
             if (!seenTitles.has(insight.title)) {
               seenTitles.add(insight.title);
               uniqueInsights.push(insight);
+            } else {
+               console.log(`Duplicate insight title removed: "${insight.title}"`);
             }
           }
-          
-          console.log(`Generated ${uniqueInsights.length} unique insights from Ollama response`);
+
+          console.log(`Generated ${uniqueInsights.length} unique insights from AI response`);
           return uniqueInsights;
         } else {
-          console.log('No insights were parsed from the response, falling back to mock');
-          return await generateMockAiResponse(hiveData, eventType);
+          console.log('No valid insights were parsed from the response or a parse error occurred, falling back to mock.');
+          // If parsing failed, insights will contain the error message object
+          if (insights && insights[0] && insights[0].id === 'ai-parse-error') {
+            return insights; // Return the error insight to display it in the UI
+          }
+          return await generateMockAiResponse(hiveData, eventType); // Fallback to mock
         }
-      }
-      
-      console.log('Invalid response format from Ollama, falling back to mock');
-      return await generateMockAiResponse(hiveData, eventType);
-    } catch (ollamaError) {
-      console.error('Ollama API error:', ollamaError.message);
-      if (ollamaError.response) {
-        console.error('Error response data:', ollamaError.response.data);
-      }
-      console.log('Falling back to mock implementation');
-      // Fall back to mock implementation if Ollama fails
+    } else {
+      console.log('Invalid response format from proxy server, falling back to mock.');
       return await generateMockAiResponse(hiveData, eventType);
     }
+
   } catch (error) {
-    console.error('Error getting AI insights:', error.message);
+    console.error('Error calling proxy server:', error.message);
+    if (error.response) {
+      // Log detailed error from proxy if available
+      console.error('Proxy Error Response Status:', error.response.status);
+      console.error('Proxy Error Response Data:', error.response.data);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received from proxy server. Is it running? Is the IP address correct?');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error setting up request to proxy server:', error.message);
+    }
+
+    console.log('Falling back to mock implementation due to error.');
+    // Consider returning a specific error message instead of mock data
     return [{
-      id: 'error',
-      title: 'Error Generating Insights',
-      message: 'Unable to generate AI insights at this time. Please try again later. Error: ' + error.message,
-      type: 'warning',
+      id: 'proxy-error',
+      title: 'AI Service Unavailable',
+      message: `Could not connect to the AI service via the proxy server. Please ensure the server is running and the IP address is correct. Error: ${error.message}`,
+      type: 'critical',
       icon: 'alert-circle',
     }];
+    // return await generateMockAiResponse(hiveData, eventType); // Or fallback to mock
   }
 };
 
@@ -516,10 +485,10 @@ const generateMockAiResponse = (hiveData, eventType) => {
           title: 'Weight Trend Analysis',
           message: `The current hive weight of ${weightWithVariation} kg indicates ${
             hiveData.sensors.weight > 40 
-              ? 'strong honey stores adequate for winter.' 
+              ? 'strong honey stores potentially adequate for winter.' 
               : hiveData.sensors.weight > 25 
-                ? 'moderate honey stores that should be monitored.' 
-                : 'potential need for supplemental feeding.'
+                ? 'moderate honey stores that should be monitored carefully.' 
+                : 'low stores, likely requiring supplemental feeding.'
           }`,
           type: hiveData.sensors.weight > 25 ? 'healthy' : 'warning',
           icon: 'scale',
