@@ -32,8 +32,11 @@ For testing purposes, you can use the following demo accounts:
 - Node.js (v14 or later)
 - npm or yarn
 - Expo CLI
+- OpenRouter API Key (for AI functionality)
 
 ### Installation
+
+#### Frontend Setup
 
 1. Clone the repository
 ```
@@ -58,8 +61,36 @@ yarn start
 4. Open the app on your device using the Expo Go app or run it in a simulator
 For IOS, npm start the app and then scan the QR code that appears in the terminal with your camera app to launch the expo app.
 
+#### Backend Server Setup (Required for AI Functionality)
+
+The server component is maintained in a separate repository and needs to be set up separately.
+
+1. Clone the server repository (or contact your team lead for access)
+
+2. Install server dependencies
+```
+cd server
+npm install
+```
+
+3. Create a `.env` file in the server directory based on the provided `.env.example`:
+```
+OPENROUTER_API_KEY=YOUR_OPENROUTER_API_KEY_HERE
+SERVER_PORT=3001
+```
+
+4. Get your own OpenRouter API key from [OpenRouter](https://openrouter.ai/) and add it to the `.env` file
+
+5. Start the server
+```
+node server.js
+```
+
 ## Project Structure
 
+The project is divided into two main parts:
+
+### Frontend (React Native App)
 ```
 hiveapp/
 ├── assets/              # Images, fonts, and other static assets
@@ -74,6 +105,17 @@ hiveapp/
 └── app.json             # Expo configuration
 ```
 
+### Backend (Node.js Server)
+```
+server/
+├── node_modules/        # Server dependencies
+├── .env                 # Environment variables (contains API keys - not committed to Git)
+├── .env.example         # Template for .env file
+├── server.js            # Main Express server handling AI API requests
+├── package.json         # Server dependencies list
+└── .gitignore           # Server-specific Git ignore rules
+```
+
 ## Technologies Used
 
 - React Native
@@ -84,6 +126,8 @@ hiveapp/
 - React Navigation
 - React Native Chart Kit
 - React Native Vector Icons
+- Express.js (server)
+- OpenRouter API (AI integration)
 
 ## Data Persistence
 
@@ -116,9 +160,16 @@ Since this is a demo application without a real backend or hardware integration,
 
 The app includes AI feature support:
 
-- **Local Mock AI**: When running on a mobile device, the app uses sophisticated mock responses
-- **Ollama Integration**: When running on a desktop/development environment, can connect to Ollama for LLM capabilities
-- **Insight Generation**: Provides actionable insights based on hive conditions, trends, and events
+- **OpenRouter Integration**: The app connects to a proxy server that makes requests to OpenRouter AI
+- **API Key Requirement**: Each developer needs their own OpenRouter API key stored in server/.env
+- **Proxy Server**: A Node.js Express server acts as a proxy to make API calls to OpenRouter
+- **DeepSeek Model**: Uses the deepseek-chat model for generating AI responses
+- **Security**: API keys are kept secure by storing them in .env files which are not committed to Git
+
+**Important Notes for Team Members:**
+- The AI functionality requires both the front-end app and the server to be running
+- You must create your own `.env` file with your personal OpenRouter API key
+- The server component is not included in the main GitHub repository and must be obtained separately
 
 ## License
 
