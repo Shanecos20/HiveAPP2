@@ -146,6 +146,14 @@ const hiveSlice = createSlice({
         state.needsSyncing = true;
       }
     },
+    // Reset hives state when user logs out
+    resetHives: (state) => {
+      state.hives = [];
+      state.selectedHiveId = null;
+      state.lastSynced = null;
+      state.needsSyncing = false;
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -242,7 +250,8 @@ export const {
   updateHiveSensor, 
   selectHive, 
   simulateHiveEvent,
-  updateHive
+  updateHive,
+  resetHives
 } = hiveSlice.actions;
 
 export default hiveSlice.reducer; 

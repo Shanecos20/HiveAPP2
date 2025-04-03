@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useSelector } from 'react-redux';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
 import { LineChart } from 'react-native-chart-kit';
 import LineChartWrapper from '../components/common/LineChartWrapper';
 import { Dimensions } from 'react-native';
@@ -10,10 +10,12 @@ import StatusBadge from '../components/common/StatusBadge';
 import theme from '../utils/theme';
 import { formatDateTime, getRecommendation } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
+import { deleteHive } from '../redux/hiveSlice';
 
 const HiveDetailScreen = ({ route, navigation }) => {
   const { hiveId } = route.params;
   const { theme: currentTheme, isDarkMode } = useTheme();
+  const dispatch = useDispatch();
   const hive = useSelector(state => 
     state.hives.hives.find(h => h.id === hiveId)
   );
@@ -103,6 +105,32 @@ const HiveDetailScreen = ({ route, navigation }) => {
   const varroaRecommendation = getRecommendation('varroa', hive.sensors.varroa);
   const weightRecommendation = getRecommendation('weight', hive.sensors.weight);
   
+  // Handle delete hive
+  const handleDeleteHive = () => {
+    Alert.alert(
+      "Delete Hive",
+      `Are you sure you want to delete "${hive.name}"? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          onPress: async () => {
+            try {
+              await dispatch(deleteHive(hive.id));
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert("Error", "Failed to delete hive. Please try again.");
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
+  };
+  
   return (
     <ScrollView 
       style={[
@@ -130,16 +158,28 @@ const HiveDetailScreen = ({ route, navigation }) => {
           </Text>
           <StatusBadge status={hive.status} />
         </View>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
-        >
-          <Ionicons 
-            name="create-outline" 
-            size={24} 
-            color={currentTheme?.colors?.primary || theme.colors.primary} 
-          />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
+          >
+            <Ionicons 
+              name="create-outline" 
+              size={24} 
+              color={currentTheme?.colors?.primary || theme.colors.primary} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleDeleteHive}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={24} 
+              color={currentTheme?.colors?.error || theme.colors.error} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <View style={styles.infoContainer}>
@@ -326,6 +366,21 @@ const HiveDetailScreen = ({ route, navigation }) => {
         />
       </Card>
       
+      {/* Notes Section */}
+      <Card 
+        title="Notes"
+        style={{ 
+          backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white 
+        }}
+      >
+        <Text style={[
+          styles.notesText,
+          { color: currentTheme?.colors?.text || theme.colors.black }
+        ]}>
+          {hive.notes || 'No notes added yet.'}
+        </Text>
+      </Card>
+      
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <TouchableOpacity 
@@ -368,6 +423,24 @@ const HiveDetailScreen = ({ route, navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Bottom action buttons */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity
+          style={[
+            styles.deleteButton,
+            { backgroundColor: currentTheme?.colors?.error || theme.colors.error }
+          ]}
+          onPress={handleDeleteHive}
+        >
+          <Ionicons
+            name="trash-outline"
+            size={20}
+            color={theme.colors.white}
+          />
+          <Text style={styles.deleteButtonText}>Delete Hive</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -396,6 +469,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.headingMedium,
     fontWeight: 'bold',
     marginRight: theme.spacing.small,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   actionButton: {
     padding: theme.spacing.small,
@@ -456,6 +533,27 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.bodyMedium,
     marginLeft: theme.spacing.small,
     fontWeight: 'bold',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: theme.spacing.medium,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.medium,
+    backgroundColor: theme.colors.error,
+    borderRadius: theme.layout.borderRadiusMedium,
+  },
+  deleteButtonText: {
+    fontSize: theme.typography.bodyMedium,
+    marginLeft: theme.spacing.small,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
+  notesText: {
+    fontSize: theme.typography.bodyMedium,
   },
 });
 

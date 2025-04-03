@@ -3,9 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, TextInput
 import { useSelector, useDispatch } from 'react-redux';
 import { updateThresholds, triggerTestNotification } from '../redux/notificationSlice';
 import { simulateHiveEvent } from '../redux/hiveSlice';
-import { logout } from '../redux/authSlice';
+import { logout, logoutUser, updateAppSettings } from '../redux/authSlice';
 import { updateNotificationThresholds } from '../redux/notificationSlice';
-import { updateAppSettings } from '../redux/authSlice';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
@@ -76,7 +75,7 @@ const SettingsScreen = () => {
   };
   
   const handleLogout = () => {
-    dispatch(logout());
+    dispatch(logoutUser());
     navigation.reset({
       index: 0,
       routes: [{ name: 'Login' }],

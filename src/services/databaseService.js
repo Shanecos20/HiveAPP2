@@ -6,7 +6,9 @@ const STORAGE_KEYS = {
   HIVES: '@hiveapp:hives',
   USER_SETTINGS: '@hiveapp:user_settings',
   NOTIFICATIONS: '@hiveapp:notifications',
-  IOT_DEVICES: '@hiveapp:iot_devices'
+  IOT_DEVICES: '@hiveapp:iot_devices',
+  USERS: '@hiveapp:users',
+  CURRENT_USER: '@hiveapp:current_user'
 };
 
 // Database service for local storage and future remote database integration
@@ -15,6 +17,7 @@ class DatabaseService {
     this.isInitialized = false;
     this.remoteAvailable = false;
     this.remoteUrl = '';
+    this.currentUser = null;
   }
 
   // Initialize the database service
@@ -29,6 +32,15 @@ class DatabaseService {
         this.remoteAvailable = !!config.enabled;
       }
       
+      // Try to load the current user
+      const currentUserJson = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+      if (currentUserJson) {
+        this.currentUser = JSON.parse(currentUserJson);
+      }
+      
+      // Migrate old hives data if needed
+      await this.migrateHivesData();
+      
       this.isInitialized = true;
       console.log(`Database service initialized. Remote DB ${this.remoteAvailable ? 'available' : 'not configured'}`);
       return true;
@@ -36,6 +48,43 @@ class DatabaseService {
       console.error('Error initializing database service:', error);
       this.isInitialized = true; // Still mark as initialized to avoid repeat attempts
       return false;
+    }
+  }
+
+  // Migrate old hives data to new user-specific format
+  async migrateHivesData() {
+    try {
+      // Only proceed if we have a current user
+      if (!this.currentUser) {
+        return;
+      }
+      
+      const rawHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
+      
+      // If no data exists, we're done
+      if (!rawHives) {
+        return;
+      }
+      
+      let hivesData = JSON.parse(rawHives);
+      
+      // Check if it's in the old format (an array instead of an object)
+      if (Array.isArray(hivesData)) {
+        console.log('Migrating hives data to user-specific format');
+        
+        // Create new format
+        const newHivesData = {};
+        newHivesData[this.currentUser.id] = hivesData.map(hive => ({
+          ...hive,
+          userId: this.currentUser.id // Add user ID to each hive
+        }));
+        
+        // Save in new format
+        await AsyncStorage.setItem(STORAGE_KEYS.HIVES, JSON.stringify(newHivesData));
+        console.log('Hives data migration completed');
+      }
+    } catch (error) {
+      console.error('Error migrating hives data:', error);
     }
   }
 
@@ -59,14 +108,148 @@ class DatabaseService {
     }
   }
 
+  // USER OPERATIONS
+  
+  // Get all users
+  async getUsers() {
+    try {
+      const users = await AsyncStorage.getItem(STORAGE_KEYS.USERS);
+      return users ? JSON.parse(users) : [];
+    } catch (error) {
+      console.error('Error getting users:', error);
+      return [];
+    }
+  }
+  
+  // Save all users
+  async saveUsers(users) {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      return true;
+    } catch (error) {
+      console.error('Error saving users:', error);
+      return false;
+    }
+  }
+  
+  // Add or update a user
+  async updateUser(user) {
+    try {
+      const users = await this.getUsers();
+      const index = users.findIndex(u => u.id === user.id);
+      
+      if (index !== -1) {
+        // Update existing user
+        users[index] = { ...users[index], ...user };
+      } else {
+        // Add new user
+        users.push({
+          ...user,
+          id: user.id || Date.now().toString()
+        });
+      }
+      
+      return await this.saveUsers(users);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return false;
+    }
+  }
+  
+  // Login user
+  async loginUser(email, password) {
+    try {
+      const users = await this.getUsers();
+      const user = users.find(u => u.email === email && u.password === password);
+      
+      if (user) {
+        // Save current user to AsyncStorage
+        const userWithoutPassword = { ...user };
+        delete userWithoutPassword.password;
+        
+        await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userWithoutPassword));
+        this.currentUser = userWithoutPassword;
+        
+        return userWithoutPassword;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error logging in user:', error);
+      return null;
+    }
+  }
+  
+  // Register new user
+  async registerUser(userData) {
+    try {
+      const users = await this.getUsers();
+      
+      // Check if email already exists
+      const existingUser = users.find(u => u.email === userData.email);
+      if (existingUser) {
+        return { success: false, message: 'Email already registered' };
+      }
+      
+      // Create new user with ID and timestamps
+      const newUser = {
+        ...userData,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Add to users array
+      users.push(newUser);
+      await this.saveUsers(users);
+      
+      // Save as current user (without password)
+      const userWithoutPassword = { ...newUser };
+      delete userWithoutPassword.password;
+      
+      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(userWithoutPassword));
+      this.currentUser = userWithoutPassword;
+      
+      return { success: true, user: userWithoutPassword };
+    } catch (error) {
+      console.error('Error registering user:', error);
+      return { success: false, message: 'Registration failed' };
+    }
+  }
+  
+  // Logout user
+  async logoutUser() {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      this.currentUser = null;
+      return true;
+    } catch (error) {
+      console.error('Error logging out user:', error);
+      return false;
+    }
+  }
+  
+  // Get current user
+  getCurrentUser() {
+    return this.currentUser;
+  }
+
   // HIVE OPERATIONS
   
   // Get all hives from the database
   async getHives() {
     try {
-      // In future, this could first check remote database
-      const hives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
-      return hives ? JSON.parse(hives) : [];
+      // If no user is logged in, return empty array
+      if (!this.currentUser) {
+        return [];
+      }
+      
+      // Get all hives
+      const allHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
+      const hives = allHives ? JSON.parse(allHives) : {};
+      
+      // Return only hives for the current user (or empty array if none exist)
+      return hives[this.currentUser.id] || [];
     } catch (error) {
       console.error('Error getting hives:', error);
       return [];
@@ -74,8 +257,21 @@ class DatabaseService {
   }
   
   // Save all hives to the database
-  async saveHives(hives) {
+  async saveHives(userHives) {
     try {
+      // If no user is logged in, don't save anything
+      if (!this.currentUser) {
+        return false;
+      }
+      
+      // Get all hives first
+      const allHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
+      const hives = allHives ? JSON.parse(allHives) : {};
+      
+      // Update only the current user's hives
+      hives[this.currentUser.id] = userHives;
+      
+      // Save back to AsyncStorage
       await AsyncStorage.setItem(STORAGE_KEYS.HIVES, JSON.stringify(hives));
       
       // In future, we could sync with remote database here
@@ -94,6 +290,11 @@ class DatabaseService {
   // Update a single hive
   async updateHive(hive) {
     try {
+      // If no user is logged in, don't update anything
+      if (!this.currentUser) {
+        return false;
+      }
+      
       const hives = await this.getHives();
       const index = hives.findIndex(h => h.id === hive.id);
       
@@ -104,7 +305,8 @@ class DatabaseService {
         hives.push({
           ...hive,
           id: hive.id || Date.now().toString(),
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          userId: this.currentUser.id // Add user ID to the hive
         });
       }
       
@@ -118,6 +320,11 @@ class DatabaseService {
   // Delete a hive
   async deleteHive(hiveId) {
     try {
+      // If no user is logged in, don't delete anything
+      if (!this.currentUser) {
+        return false;
+      }
+      
       const hives = await this.getHives();
       const filteredHives = hives.filter(hive => hive.id !== hiveId);
       
