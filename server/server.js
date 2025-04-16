@@ -52,7 +52,7 @@ app.post('/api/chat', async (req, res) => {
         console.log('Using API key starting with:', OPENROUTER_API_KEY.substring(0, 15) + '...');
         
         const postData = JSON.stringify({
-            model: 'deepseek/deepseek-chat',
+            model: 'deepseek/deepseek-chat-v3-0324:free',
             messages: [
                 { role: 'user', content: prompt }
             ],
