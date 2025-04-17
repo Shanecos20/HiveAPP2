@@ -1,5 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import axios from 'axios';
+
+// Firebase database URL (same as the one used in Unity simulator)
+const FIREBASE_DATABASE_URL = 'https://hive-f7c39-default-rtdb.europe-west1.firebasedatabase.app';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -18,6 +22,7 @@ class DatabaseService {
     this.remoteAvailable = false;
     this.remoteUrl = '';
     this.currentUser = null;
+    this.firebaseEnabled = true; // Enable Firebase integration by default
   }
 
   // Initialize the database service
@@ -236,104 +241,239 @@ class DatabaseService {
 
   // HIVE OPERATIONS
   
-  // Get all hives from the database
+  // Get all hives *from local storage* for the current user
   async getHives() {
+    return this.getLocalHives(); // Simplified: Always return local hives
+  }
+
+  // Get hives from local storage (Internal helper)
+  async getLocalHives() {
     try {
-      // If no user is logged in, return empty array
       if (!this.currentUser) {
         return [];
       }
       
-      // Get all hives
-      const allHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
-      const hives = allHives ? JSON.parse(allHives) : {};
+      const rawHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
+      if (!rawHives) {
+        return [];
+      }
       
-      // Return only hives for the current user (or empty array if none exist)
-      return hives[this.currentUser.id] || [];
+      let hivesData = JSON.parse(rawHives);
+      
+      // Handle potential old format
+      if (Array.isArray(hivesData)) {
+        console.log('Applying migration logic within getLocalHives');
+        const migratedData = { [this.currentUser.id]: hivesData.map(hive => ({ ...hive, userId: this.currentUser.id })) };
+        await AsyncStorage.setItem(STORAGE_KEYS.HIVES, JSON.stringify(migratedData));
+        return migratedData[this.currentUser.id] || [];
+      } else if (typeof hivesData === 'object' && hivesData !== null) {
+        // New format
+        return hivesData[this.currentUser.id] || [];
+      } else {
+        // Invalid data format
+        console.warn('Invalid hives data format found in AsyncStorage.');
+        return [];
+      }
     } catch (error) {
-      console.error('Error getting hives:', error);
+      console.error('Error getting local hives:', error);
       return [];
     }
   }
   
-  // Save all hives to the database
-  async saveHives(userHives) {
+  // Save hives to local storage (Internal helper)
+  async saveLocalHives(userHives) {
     try {
-      // If no user is logged in, don't save anything
       if (!this.currentUser) {
         return false;
       }
       
-      // Get all hives first
-      const allHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
-      const hives = allHives ? JSON.parse(allHives) : {};
+      const rawHives = await AsyncStorage.getItem(STORAGE_KEYS.HIVES);
+      let hivesData = rawHives ? JSON.parse(rawHives) : {};
       
-      // Update only the current user's hives
-      hives[this.currentUser.id] = userHives;
-      
-      // Save back to AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEYS.HIVES, JSON.stringify(hives));
-      
-      // In future, we could sync with remote database here
-      if (this.remoteAvailable) {
-        // this.syncHivesToRemote(hives);
-        console.log('Remote sync would happen here');
+      // Ensure object format
+      if (Array.isArray(hivesData)) {
+         hivesData = { [this.currentUser.id]: [] }; // Initialize if old format found
+      }
+      if (typeof hivesData !== 'object' || hivesData === null) {
+          hivesData = {}; // Initialize if invalid format
       }
       
+      hivesData[this.currentUser.id] = userHives;
+      await AsyncStorage.setItem(STORAGE_KEYS.HIVES, JSON.stringify(hivesData));
       return true;
     } catch (error) {
-      console.error('Error saving hives:', error);
+      console.error('Error saving local hives:', error);
       return false;
     }
   }
   
-  // Update a single hive
-  async updateHive(hive) {
+  // Fetch *specific* hive sensor data from Firebase
+  async fetchFirebaseHiveData(hiveId) {
+    if (!this.firebaseEnabled) {
+      console.log('Firebase fetching is disabled.');
+      return null;
+    }
     try {
-      // If no user is logged in, don't update anything
-      if (!this.currentUser) {
-        return false;
-      }
-      
-      const hives = await this.getHives();
-      const index = hives.findIndex(h => h.id === hive.id);
-      
-      if (index !== -1) {
-        hives[index] = { ...hives[index], ...hive, lastUpdated: new Date().toISOString() };
+      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${hiveId}/sensors.json`);
+      if (response.data) {
+        // Return just the sensor data object
+        return {
+          id: hiveId,
+          sensors: response.data
+        };
       } else {
-        // New hive, add it
-        hives.push({
-          ...hive,
-          id: hive.id || Date.now().toString(),
-          lastUpdated: new Date().toISOString(),
-          userId: this.currentUser.id // Add user ID to the hive
-        });
+        console.log(`No sensor data found in Firebase for hive ID: ${hiveId}`);
+        return null; // Indicate hive not found or no sensor data
       }
-      
-      return await this.saveHives(hives);
     } catch (error) {
-      console.error('Error updating hive:', error);
-      return false;
+      // Handle 404 specifically? Axios might throw for 404
+      if (error.response && error.response.status === 404) {
+         console.log(`Firebase path not found for hive ID: ${hiveId}`);
+         return null; 
+      } 
+      console.error(`Error fetching data for hive ${hiveId} from Firebase:`, error);
+      // Don't re-throw, return null to indicate failure
+      return null;
     }
   }
   
-  // Delete a hive
-  async deleteHive(hiveId) {
+  // Add or Update Hive (Handles both modes)
+  async updateHive(hiveData, isAddMode = false) {
     try {
-      // If no user is logged in, don't delete anything
       if (!this.currentUser) {
-        return false;
+        throw new Error("No user logged in.");
       }
       
-      const hives = await this.getHives();
-      const filteredHives = hives.filter(hive => hive.id !== hiveId);
+      const localHives = await this.getLocalHives();
       
-      return await this.saveHives(filteredHives);
+      if (isAddMode) {
+        // === ADD MODE ===
+        // 1. Check if hive ID already exists locally
+        const alreadyExistsLocally = localHives.some(h => h.id === hiveData.id);
+        if (alreadyExistsLocally) {
+          throw new Error(`Hive with ID ${hiveData.id} already exists locally.`);
+        }
+        
+        // 2. Verify hive exists in Firebase and get initial sensor data
+        const firebaseData = await this.fetchFirebaseHiveData(hiveData.id);
+        if (!firebaseData || !firebaseData.sensors) {
+          throw new Error(`Hive ID ${hiveData.id} not found in the simulator database (Firebase). Please check the ID or QR code.`);
+        }
+        
+        // 3. Create the full new hive object
+        const newHive = {
+          ...hiveData, // Includes id, name, location, notes from input
+          userId: this.currentUser.id,
+          sensors: firebaseData.sensors, // Initial sensor data
+          history: {
+            temperature: [firebaseData.sensors.temperature].filter(v => v !== undefined),
+            humidity: [firebaseData.sensors.humidity].filter(v => v !== undefined),
+            varroa: [firebaseData.sensors.varroa].filter(v => v !== undefined),
+            weight: [firebaseData.sensors.weight].filter(v => v !== undefined),
+          },
+          createdAt: new Date().toISOString(),
+          lastUpdated: firebaseData.sensors.timestamp
+             ? new Date(firebaseData.sensors.timestamp).toISOString()
+             : new Date().toISOString(),
+          status: this.determineHiveStatus(firebaseData.sensors),
+        };
+        
+        localHives.push(newHive);
+        await this.saveLocalHives(localHives);
+        return newHive; // Return the newly created hive
+
+      } else {
+        // === EDIT MODE ===
+        const index = localHives.findIndex(h => h.id === hiveData.id);
+        if (index !== -1) {
+          // Only update fields that can be edited (name, location, notes)
+          localHives[index] = {
+            ...localHives[index], // Keep existing sensors, history, status etc.
+            name: hiveData.name,
+            location: hiveData.location,
+            notes: hiveData.notes,
+            lastUpdated: new Date().toISOString(), // Update timestamp on edit
+          };
+          await this.saveLocalHives(localHives);
+          return localHives[index]; // Return the updated hive
+        } else {
+          throw new Error("Hive not found for editing.");
+        }
+      }
     } catch (error) {
-      console.error('Error deleting hive:', error);
-      return false;
+      console.error('Error in updateHive:', error);
+      throw error; // Re-throw the error to be caught by the thunk
     }
   }
+  
+  // Method to update a local hive's sensor data and history from Firebase data
+  async updateLocalHiveSensors(hiveId, firebaseSensorData) {
+     if (!this.currentUser || !firebaseSensorData) {
+         return false;
+     }
+     try {
+         const localHives = await this.getLocalHives();
+         const index = localHives.findIndex(h => h.id === hiveId);
+
+         if (index !== -1) {
+             const hive = localHives[index];
+             hive.sensors = firebaseSensorData; // Update sensors
+             hive.lastUpdated = firebaseSensorData.timestamp
+                 ? new Date(firebaseSensorData.timestamp).toISOString()
+                 : new Date().toISOString();
+             hive.status = this.determineHiveStatus(firebaseSensorData);
+
+             // Update history
+             Object.keys(firebaseSensorData).forEach(key => {
+                 if (key !== 'timestamp' && hive.history[key] !== undefined) {
+                     hive.history[key].push(firebaseSensorData[key]);
+                     if (hive.history[key].length > 30) { // Keep last 30 readings
+                         hive.history[key].shift();
+                     }
+                 }
+             });
+
+             await this.saveLocalHives(localHives);
+             return true;
+         }
+         return false;
+     } catch (error) {
+         console.error(`Error updating local sensors for hive ${hiveId}:`, error);
+         return false;
+     }
+  }
+
+  // Determine Hive Status (moved from hiveSlice)
+  determineHiveStatus(sensors) {
+    const { temperature, humidity, varroa } = sensors || {};
+    
+    if (temperature === undefined || humidity === undefined || varroa === undefined) {
+      return 'unknown';
+    }
+    
+    if (temperature > 40 || temperature < 30 || varroa > 3 || humidity > 90 || humidity < 40) {
+      return 'critical';
+    }
+    if (temperature > 38 || temperature < 32 || varroa > 1 || humidity > 80 || humidity < 50) {
+      return 'warning';
+    }
+    return 'healthy';
+  }
+
+  // Delete Hive (remains the same, operates on local data)
+  async deleteHive(hiveId) {
+     try {
+       if (!this.currentUser) {
+         return false;
+       }
+       const localHives = await this.getLocalHives();
+       const filteredHives = localHives.filter(hive => hive.id !== hiveId);
+       return await this.saveLocalHives(filteredHives);
+     } catch (error) {
+       console.error('Error deleting hive:', error);
+       return false;
+     }
+   }
   
   // USER SETTINGS OPERATIONS
   

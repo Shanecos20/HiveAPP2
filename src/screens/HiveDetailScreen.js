@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { LineChart } from 'react-native-chart-kit';
@@ -7,10 +7,11 @@ import { Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
 import StatusBadge from '../components/common/StatusBadge';
+import SyncButton from '../components/common/SyncButton';
 import theme from '../utils/theme';
 import { formatDateTime, getRecommendation } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
-import { deleteHive } from '../redux/hiveSlice';
+import { deleteHive, syncAllHivesData } from '../redux/hiveSlice';
 
 const HiveDetailScreen = ({ route, navigation }) => {
   const { hiveId } = route.params;
@@ -19,6 +20,21 @@ const HiveDetailScreen = ({ route, navigation }) => {
   const hive = useSelector(state => 
     state.hives.hives.find(h => h.id === hiveId)
   );
+  
+  // Track syncing state
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Sync data from Firebase
+  const syncData = async () => {
+    setIsSyncing(true);
+    try {
+      await dispatch(syncAllHivesData()).unwrap();
+    } catch (error) {
+      console.error('Error syncing data:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
   
   if (!hive) {
     return (
@@ -159,6 +175,11 @@ const HiveDetailScreen = ({ route, navigation }) => {
           <StatusBadge status={hive.status} />
         </View>
         <View style={styles.headerActions}>
+          <SyncButton
+            onPress={syncData}
+            isSyncing={isSyncing}
+            style={styles.syncButton}
+          />
           <TouchableOpacity 
             style={styles.actionButton}
             onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
@@ -440,6 +461,17 @@ const HiveDetailScreen = ({ route, navigation }) => {
           />
           <Text style={styles.deleteButtonText}>Delete Hive</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[
+            styles.sensorsButton,
+            { backgroundColor: currentTheme?.colors?.secondary || theme.colors.secondary }
+          ]}
+          onPress={() => navigation.navigate('HiveSensors', { hiveId })}
+        >
+          <Ionicons name="hardware-chip" size={20} color={theme.colors.white} />
+          <Text style={styles.sensorsButtonText}>Sensors</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -545,6 +577,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.medium,
     backgroundColor: theme.colors.error,
     borderRadius: theme.layout.borderRadiusMedium,
+    marginRight: theme.spacing.small,
   },
   deleteButtonText: {
     fontSize: theme.typography.bodyMedium,
@@ -552,8 +585,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.white,
   },
+  sensorsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.medium,
+    backgroundColor: theme.colors.secondary,
+    borderRadius: theme.layout.borderRadiusMedium,
+  },
+  sensorsButtonText: {
+    fontSize: theme.typography.bodyMedium,
+    marginLeft: theme.spacing.small,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+  },
   notesText: {
     fontSize: theme.typography.bodyMedium,
+  },
+  syncButton: {
+    marginRight: theme.spacing.tiny,
   },
 });
 

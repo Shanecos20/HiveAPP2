@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import theme from '../utils/theme';
 import { saveHive } from '../redux/hiveSlice';
+import QRCodeScanner from '../components/QRCodeScanner';
 
 // Generate sample history data for new hives
 const generateSensorHistory = (baseValue, count = 6, variance = 5) => {
@@ -40,6 +41,14 @@ const EditHiveScreen = () => {
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
+  // For QR scanning and manual hive ID (Add mode only)
+  const [manualHiveId, setManualHiveId] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  
+  // For error tracking during scans
+  const [scanError, setScanError] = useState(null);
+  
   useEffect(() => {
     if (hive) {
       setName(hive.name);
@@ -54,66 +63,47 @@ const EditHiveScreen = () => {
       return;
     }
     
+    if (isAddMode && !scanResult && !manualHiveId.trim()) {
+      Alert.alert('Validation Error', 'Please scan a QR code or enter a hive ID.');
+      return;
+    }
+    
     setIsSaving(true);
+    setScanError(null);
     
     try {
-      // Create updated or new hive object
-      const timestamp = new Date().toISOString();
-      const hiveData = isAddMode
-        ? {
-            id: 'hive_' + Date.now(), // Generate a unique ID
-            name: name.trim(),
-            location: location.trim(),
-            notes: notes.trim(),
-            createdAt: timestamp,
-            lastUpdated: timestamp,
-            sensors: {
-              temperature: 32,
-              humidity: 45,
-              varroa: 2,
-              weight: 15
-            },
-            history: {
-              temperature: generateSensorHistory(32),
-              humidity: generateSensorHistory(45),
-              varroa: generateSensorHistory(2, 6, 1),
-              weight: generateSensorHistory(15, 6, 2)
-            },
-            status: 'healthy'
-          }
-        : {
-            ...hive,
-            id: hiveId,
-            name: name.trim(),
-            location: location.trim(),
-            notes: notes.trim(),
-            lastUpdated: timestamp
-          };
+      // Create the hive data object
+      const hiveData = {
+        id: isAddMode ? (scanResult || manualHiveId.trim()) : hiveId,
+        name: name.trim(),
+        location: location.trim(),
+        notes: notes.trim(),
+      };
       
-      // Dispatch the async thunk
-      const resultAction = await dispatch(saveHive(hiveData));
+      // Dispatch with the new parameters (hiveData and isAddMode flag)
+      const resultAction = await dispatch(saveHive({ hiveData, isAddMode }));
       
       if (saveHive.fulfilled.match(resultAction)) {
-        Alert.alert('Success', isAddMode ? 'Hive added successfully!' : 'Hive updated successfully!', [
-          { 
-            text: 'OK', 
-            onPress: () => {
-              // Navigate to Main (Dashboard) after adding/editing a hive
-              navigation.navigate('Main');
-            }
-          }
-        ]);
-      } else {
-        // Handle error from the thunk
-        const errorMessage = resultAction.error?.message || 'Failed to save hive';
-        Alert.alert('Error', errorMessage);
+        Alert.alert(
+          'Success', 
+          isAddMode ? 'Hive connected successfully!' : 'Hive updated successfully!', 
+          [{ text: 'OK', onPress: () => navigation.navigate('Main') }]
+        );
       }
     } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred while saving the hive.');
-      console.error('Save hive error:', err);
+      setScanError(err.message || 'An unexpected error occurred.');
+      Alert.alert('Error', err.message || 'An unexpected error occurred.');
     } finally {
       setIsSaving(false);
     }
+  };
+  
+  // Handle QR code scanning result
+  const handleScanComplete = (data) => {
+    setScanResult(data);
+    setIsScanning(false);
+    // Display success message
+    Alert.alert('Success', `QR code scanned successfully. Hive ID: ${data}`);
   };
   
   if (!isAddMode && !hive) {
@@ -137,6 +127,13 @@ const EditHiveScreen = () => {
     <ScrollView style={[styles.container, {
       backgroundColor: isDarkMode ? currentTheme.colors.background : theme.colors.background
     }]}>
+      {isScanning && (
+        <QRCodeScanner 
+          onScan={handleScanComplete}
+          onClose={() => setIsScanning(false)}
+        />
+      )}
+      
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -146,13 +143,64 @@ const EditHiveScreen = () => {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, {
           color: isDarkMode ? currentTheme.colors.text : theme.colors.black
-        }]}>{isAddMode ? 'Add New Hive' : 'Edit Hive'}</Text>
+        }]}>{isAddMode ? 'Connect to Hive' : 'Edit Hive'}</Text>
       </View>
       
       <View style={styles.form}>
-        {error && (
+        {(error || scanError) && (
           <View style={styles.errorMessage}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{error || scanError}</Text>
+          </View>
+        )}
+        
+        {isAddMode && (
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, {
+              color: isDarkMode ? currentTheme.colors.text : theme.colors.darkGrey
+            }]}>Hive ID</Text>
+            
+            <View style={styles.hiveIdContainer}>
+              <TextInput
+                style={[styles.input, styles.hiveIdInput, {
+                  backgroundColor: isDarkMode ? currentTheme.colors.card : theme.colors.white,
+                  color: isDarkMode ? currentTheme.colors.text : theme.colors.black,
+                  borderColor: isDarkMode ? currentTheme.colors.border : theme.colors.lightGrey
+                }]}
+                value={scanResult || manualHiveId}
+                onChangeText={setManualHiveId}
+                placeholder="Enter hive ID or scan QR code"
+                placeholderTextColor={isDarkMode ? currentTheme.colors.textSecondary : theme.colors.grey}
+                editable={!scanResult} // Disable editing if QR is scanned
+              />
+              <TouchableOpacity
+                style={[styles.scanButton, {
+                  backgroundColor: isDarkMode ? currentTheme.colors.primary : theme.colors.primary
+                }]}
+                onPress={() => setIsScanning(true)}
+              >
+                <Ionicons name="qr-code" size={24} color={theme.colors.white} />
+              </TouchableOpacity>
+            </View>
+            
+            {scanResult && (
+              <TouchableOpacity 
+                style={styles.clearScanButton}
+                onPress={() => {
+                  setScanResult(null);
+                  setManualHiveId('');
+                }}
+              >
+                <Text style={[styles.clearScanText, {
+                  color: isDarkMode ? currentTheme.colors.primary : theme.colors.primary
+                }]}>Clear scanned code</Text>
+              </TouchableOpacity>
+            )}
+            
+            <Text style={[styles.helperText, {
+              color: isDarkMode ? currentTheme.colors.textSecondary : theme.colors.darkGrey
+            }]}>
+              Scan the QR code on your physical hive or enter the hive ID
+            </Text>
           </View>
         )}
         
@@ -209,7 +257,7 @@ const EditHiveScreen = () => {
           />
         </View>
         
-        {!isAddMode && (
+        {!isAddMode && hive?.sensors && (
           <View style={[styles.sensorContainer, {
             borderColor: isDarkMode ? currentTheme.colors.border : theme.colors.lightGrey
           }]}>
@@ -274,9 +322,20 @@ const EditHiveScreen = () => {
           {isSaving ? (
             <ActivityIndicator color={theme.colors.white} />
           ) : (
-            <Text style={styles.saveButtonText}>{isAddMode ? 'Add Hive' : 'Save Changes'}</Text>
+            <Text style={styles.saveButtonText}>{isAddMode ? 'Connect Hive' : 'Save Changes'}</Text>
           )}
         </TouchableOpacity>
+        
+        {isAddMode && (
+          <View style={styles.simulationNote}>
+            <Ionicons name="information-circle" size={20} color={theme.colors.info} />
+            <Text style={[styles.noteText, {
+              color: isDarkMode ? currentTheme.colors.textSecondary : theme.colors.darkGrey
+            }]}>
+              Your hive data is now streamed from the Unity Hive Simulator. Use the QR code or Hive ID from the simulator.
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -395,6 +454,49 @@ const styles = StyleSheet.create({
     padding: theme.spacing.medium,
     borderRadius: theme.layout.borderRadiusMedium,
     marginBottom: theme.spacing.medium,
+  },
+  // QR Code Scanner and Hive ID input styles
+  hiveIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hiveIdInput: {
+    flex: 1,
+    marginRight: theme.spacing.small,
+  },
+  scanButton: {
+    width: 50,
+    height: 50,
+    borderRadius: theme.layout.borderRadiusSmall,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearScanButton: {
+    marginTop: theme.spacing.small,
+    alignSelf: 'flex-start',
+  },
+  clearScanText: {
+    fontSize: theme.typography.bodySmall,
+    color: theme.colors.primary,
+  },
+  helperText: {
+    fontSize: theme.typography.bodySmall,
+    color: theme.colors.darkGrey,
+    marginTop: theme.spacing.tiny,
+  },
+  simulationNote: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.info + '20', // 20% opacity
+    padding: theme.spacing.medium,
+    borderRadius: theme.layout.borderRadiusSmall,
+    marginTop: theme.spacing.large,
+    alignItems: 'flex-start',
+  },
+  noteText: {
+    fontSize: theme.typography.bodySmall,
+    color: theme.colors.darkGrey,
+    marginLeft: theme.spacing.small,
+    flex: 1,
   },
 });
 

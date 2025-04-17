@@ -10,41 +10,67 @@ const initialState = {
   lastSynced: null
 };
 
-// Async thunk to load hives from the database
+// Async thunk to load hives from *local* storage
 export const fetchHives = createAsyncThunk(
   'hives/fetchHives',
   async (_, { rejectWithValue }) => {
     try {
-      // Initialize the database service if needed
       if (!databaseService.isInitialized) {
         await databaseService.initialize();
       }
-      const hives = await databaseService.getHives();
+      const hives = await databaseService.getHives(); // Now fetches only local
       return hives;
     } catch (error) {
-      return rejectWithValue('Failed to fetch hives: ' + error.message);
+      return rejectWithValue('Failed to fetch local hives: ' + error.message);
     }
   }
 );
 
-// Async thunk to save a hive to the database
+// Async thunk to save a hive (add or edit)
 export const saveHive = createAsyncThunk(
   'hives/saveHive',
-  async (hive, { rejectWithValue }) => {
+  async ({ hiveData, isAddMode }, { rejectWithValue }) => {
     try {
-      const success = await databaseService.updateHive(hive);
-      if (success) {
-        return hive;
-      } else {
-        return rejectWithValue('Failed to save hive');
-      }
+      // Use the updated database service method
+      const savedHive = await databaseService.updateHive(hiveData, isAddMode);
+      return { savedHive, isAddMode }; // Return hive and mode for reducer
     } catch (error) {
-      return rejectWithValue('Error saving hive: ' + error.message);
+      // Pass the specific error message from the service
+      return rejectWithValue(error.message || 'Error saving hive');
     }
   }
 );
 
-// Async thunk to delete a hive from the database
+// NEW Async thunk to sync sensor data for all hives from Firebase
+export const syncAllHivesData = createAsyncThunk(
+  'hives/syncAllHivesData',
+  async (_, { getState, rejectWithValue }) => {
+    const { hives } = getState().hives;
+    if (!hives || hives.length === 0) {
+      return []; // No hives to sync
+    }
+
+    try {
+      const updatedHivesData = [];
+      for (const hive of hives) {
+        const firebaseData = await databaseService.fetchFirebaseHiveData(hive.id);
+        if (firebaseData && firebaseData.sensors) {
+           // Update local storage (databaseService handles this now)
+           await databaseService.updateLocalHiveSensors(hive.id, firebaseData.sensors);
+           updatedHivesData.push({ hiveId: hive.id, sensors: firebaseData.sensors });
+        } else {
+          // Optionally handle hives that weren't found in Firebase (e.g., log a warning)
+          console.warn(`Could not sync data for hive ${hive.id}. Not found in Firebase or fetch error.`);
+        }
+      }
+      return updatedHivesData; // Return array of { hiveId, sensors } for hives that were updated
+    } catch (error) {
+      return rejectWithValue('Error syncing hive data from Firebase: ' + error.message);
+    }
+  }
+);
+
+// Async thunk to delete a hive
 export const deleteHive = createAsyncThunk(
   'hives/deleteHive',
   async (hiveId, { rejectWithValue }) => {
@@ -53,7 +79,7 @@ export const deleteHive = createAsyncThunk(
       if (success) {
         return hiveId;
       } else {
-        return rejectWithValue('Failed to delete hive');
+        return rejectWithValue('Failed to delete hive locally');
       }
     } catch (error) {
       return rejectWithValue('Error deleting hive: ' + error.message);
@@ -66,98 +92,17 @@ const hiveSlice = createSlice({
   name: 'hives',
   initialState,
   reducers: {
-    updateHiveSensor: (state, action) => {
-      const { hiveId, sensorType, value } = action.payload;
-      const hive = state.hives.find(h => h.id === hiveId);
-      
-      if (hive) {
-        // Update current value
-        hive.sensors[sensorType] = value;
-        
-        // Update history (add to end and keep last 30 readings)
-        if (!hive.history[sensorType]) {
-          hive.history[sensorType] = [];
-        }
-        hive.history[sensorType].push(value);
-        if (hive.history[sensorType].length > 30) {
-          hive.history[sensorType].shift();
-        }
-        
-        // Update last updated timestamp
-        hive.lastUpdated = new Date().toISOString();
-        
-        // Update hive status based on sensor values
-        hive.status = determineHiveStatus(hive);
-        
-        // Save changes to the database (handled in middleware)
-        state.needsSyncing = true;
-      }
-    },
     selectHive: (state, action) => {
       state.selectedHiveId = action.payload;
     },
-    simulateHiveEvent: (state, action) => {
-      const { hiveId, eventType } = action.payload;
-      const hive = state.hives.find(h => h.id === hiveId);
-      
-      if (hive) {
-        switch (eventType) {
-          case 'swarm':
-            // Simulate a sudden drop in weight
-            hive.sensors.weight -= 15;
-            hive.history.weight.push(hive.sensors.weight);
-            if (hive.history.weight.length > 30) hive.history.weight.shift();
-            break;
-          case 'varroa_outbreak':
-            // Simulate a spike in varroa count
-            hive.sensors.varroa += 3.5;
-            hive.history.varroa.push(hive.sensors.varroa);
-            if (hive.history.varroa.length > 30) hive.history.varroa.shift();
-            break;
-          case 'temperature_spike':
-            // Simulate a temperature increase
-            hive.sensors.temperature += 5;
-            hive.history.temperature.push(hive.sensors.temperature);
-            if (hive.history.temperature.length > 30) hive.history.temperature.shift();
-            break;
-          default:
-            break;
-        }
-        
-        // Update status and last updated time
-        hive.status = determineHiveStatus(hive);
-        hive.lastUpdated = new Date().toISOString();
-        
-        // Mark for syncing
-        state.needsSyncing = true;
-      }
-    },
-    updateHive: (state, action) => {
-      const { id, name, location, notes } = action.payload;
-      const hiveIndex = state.hives.findIndex(hive => hive.id === id);
-      
-      if (hiveIndex !== -1) {
-        state.hives[hiveIndex].name = name;
-        state.hives[hiveIndex].location = location;
-        state.hives[hiveIndex].notes = notes;
-        state.hives[hiveIndex].lastUpdated = new Date().toISOString();
-        
-        // Mark for syncing
-        state.needsSyncing = true;
-      }
-    },
-    // Reset hives state when user logs out
     resetHives: (state) => {
-      state.hives = [];
-      state.selectedHiveId = null;
-      state.lastSynced = null;
-      state.needsSyncing = false;
-      state.error = null;
+      // Keep initialState structure
+      Object.assign(state, initialState);
     },
   },
   extraReducers: (builder) => {
     builder
-      // Handle fetchHives
+      // fetchHives (Local)
       .addCase(fetchHives.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -165,65 +110,98 @@ const hiveSlice = createSlice({
       .addCase(fetchHives.fulfilled, (state, action) => {
         state.hives = action.payload;
         state.loading = false;
-        state.error = null;
-        state.lastSynced = new Date().toISOString();
-        
-        // If we have hives and none selected, select the first one
-        if (state.hives.length > 0 && !state.selectedHiveId) {
-          state.selectedHiveId = state.hives[0].id;
+        if (state.hives.length > 0 && (!state.selectedHiveId || !state.hives.find(h => h.id === state.selectedHiveId))) {
+          state.selectedHiveId = state.hives[0].id; // Select first if current selection invalid
         }
       })
       .addCase(fetchHives.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch hives';
+        state.error = action.payload;
       })
       
-      // Handle saveHive
+      // saveHive (Add/Edit)
       .addCase(saveHive.pending, (state) => {
-        state.loading = true;
+        state.loading = true; 
         state.error = null;
       })
       .addCase(saveHive.fulfilled, (state, action) => {
-        const updatedHive = action.payload;
-        const index = state.hives.findIndex(h => h.id === updatedHive.id);
-        
-        if (index !== -1) {
-          state.hives[index] = updatedHive;
+        const { savedHive, isAddMode } = action.payload;
+        if (isAddMode) {
+          state.hives.push(savedHive);
+          // If this is the first hive added, select it
+          if (state.hives.length === 1) {
+              state.selectedHiveId = savedHive.id;
+          }
         } else {
-          state.hives.push(updatedHive);
+          const index = state.hives.findIndex(h => h.id === savedHive.id);
+          if (index !== -1) {
+            state.hives[index] = savedHive;
+          }
         }
-        
         state.loading = false;
-        state.lastSynced = new Date().toISOString();
-        state.needsSyncing = false;
+        state.error = null;
       })
       .addCase(saveHive.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to save hive';
+        state.error = action.payload; // Error message from service
       })
       
-      // Handle deleteHive
-      .addCase(deleteHive.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+      // deleteHive
+      .addCase(deleteHive.pending, (state, action) => {
+         // Optional: Indicate loading specific to the hive being deleted
       })
       .addCase(deleteHive.fulfilled, (state, action) => {
         const hiveId = action.payload;
         state.hives = state.hives.filter(hive => hive.id !== hiveId);
-        
-        // If the removed hive was selected, select the first available hive
-        if (state.selectedHiveId === hiveId && state.hives.length > 0) {
-          state.selectedHiveId = state.hives[0].id;
-        } else if (state.hives.length === 0) {
-          state.selectedHiveId = null;
+        if (state.selectedHiveId === hiveId) {
+          state.selectedHiveId = state.hives.length > 0 ? state.hives[0].id : null;
         }
-        
-        state.loading = false;
-        state.lastSynced = new Date().toISOString();
+        state.error = null;
       })
       .addCase(deleteHive.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload || 'Failed to delete hive';
+        state.error = action.payload;
+      })
+
+      // syncAllHivesData
+      .addCase(syncAllHivesData.pending, (state) => {
+        // Optional: set a syncing flag, state.syncing = true;
+      })
+      .addCase(syncAllHivesData.fulfilled, (state, action) => {
+        const updates = action.payload; // Array of { hiveId, sensors }
+        updates.forEach(update => {
+            const index = state.hives.findIndex(h => h.id === update.hiveId);
+            if (index !== -1) {
+                const hive = state.hives[index];
+                hive.sensors = update.sensors; // Update sensors
+                hive.lastUpdated = update.sensors.timestamp
+                    ? new Date(update.sensors.timestamp).toISOString()
+                    : new Date().toISOString();
+                hive.status = databaseService.determineHiveStatus(update.sensors); // Use service method
+
+                // Update history
+                Object.keys(update.sensors).forEach(key => {
+                    if (key !== 'timestamp' && hive.history && hive.history[key] !== undefined) {
+                       if (!Array.isArray(hive.history[key])) { // Ensure history array exists
+                         hive.history[key] = [];
+                       }
+                       hive.history[key].push(update.sensors[key]);
+                       if (hive.history[key].length > 30) {
+                           hive.history[key].shift();
+                       }
+                    } else if (key !== 'timestamp' && hive.history && hive.history[key] === undefined) {
+                       // Initialize history if sensor exists but history doesn't
+                       hive.history[key] = [update.sensors[key]];
+                    }
+                });
+            }
+        });
+        state.lastSynced = new Date().toISOString();
+        // Optional: state.syncing = false;
+        state.error = null; // Clear previous sync errors
+      })
+      .addCase(syncAllHivesData.rejected, (state, action) => {
+        state.error = action.payload; // Store sync error
+        // Optional: state.syncing = false;
       });
   }
 });
@@ -247,10 +225,7 @@ function determineHiveStatus(hive) {
 }
 
 export const { 
-  updateHiveSensor, 
   selectHive, 
-  simulateHiveEvent,
-  updateHive,
   resetHives
 } = hiveSlice.actions;
 

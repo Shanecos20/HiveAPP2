@@ -21,6 +21,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import InsightsScreen from './src/screens/InsightsScreen';
 import EditHiveScreen from './src/screens/EditHiveScreen';
+import HiveSensorsScreen from './src/screens/HiveSensorsScreen';
 
 // Import components
 import NotificationPopup from './src/components/notifications/NotificationPopup';
@@ -156,6 +157,7 @@ const AppNavigator = () => {
             <Stack.Screen name="EditHive" component={EditHiveScreen} />
             <Stack.Screen name="AddHive" component={EditHiveScreen} />
             <Stack.Screen name="Insights" component={InsightsScreen} />
+            <Stack.Screen name="HiveSensors" component={HiveSensorsScreen} />
           </>
         )}
       </Stack.Navigator>

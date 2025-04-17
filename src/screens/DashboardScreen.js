@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectHive, updateHiveSensor, saveHive } from '../redux/hiveSlice';
+import { selectHive, updateHiveSensor, saveHive, fetchHives, syncAllHivesData } from '../redux/hiveSlice';
 import { formatDateTime, getStatusColor, simulateSensorChange } from '../utils/helpers';
 import theme from '../utils/theme';
 import Card from '../components/common/Card';
 import StatusBadge from '../components/common/StatusBadge';
+import SyncButton from '../components/common/SyncButton';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import LineChartWrapper from '../components/common/LineChartWrapper';
@@ -14,69 +15,40 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const DashboardScreen = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { hives, selectedHiveId, loading, error } = useSelector(state => state.hives);
+  const { hives, selectedHiveId, loading, error, lastSynced } = useSelector(state => state.hives);
   const { userType } = useSelector(state => state.auth);
   const { theme: currentTheme, isDarkMode } = useTheme();
+  
+  // Track syncing state for UI feedback
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Find the selected hive
   const selectedHive = hives.find(h => h.id === selectedHiveId) || hives[0];
   
-  // Simulate sensor updates every 10 seconds
+  // Fetch data from Firebase every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      if (selectedHive) {
-        // Create updated hive object with all sensor changes
-        const updatedHive = { 
-          ...selectedHive,
-          sensors: { ...selectedHive.sensors },
-          history: { 
-            temperature: [...(selectedHive.history.temperature || [])],
-            humidity: [...(selectedHive.history.humidity || [])],
-            varroa: [...(selectedHive.history.varroa || [])],
-            weight: [...(selectedHive.history.weight || [])]
-          }
-        };
-        
-        // Update temperature
-        updatedHive.sensors.temperature = simulateSensorChange(
-          selectedHive.sensors.temperature, -0.3, 0.3
-        );
-        updatedHive.history.temperature.push(updatedHive.sensors.temperature);
-        if (updatedHive.history.temperature.length > 30) updatedHive.history.temperature.shift();
-        
-        // Update humidity
-        updatedHive.sensors.humidity = simulateSensorChange(
-          selectedHive.sensors.humidity, -0.5, 0.5
-        );
-        updatedHive.history.humidity.push(updatedHive.sensors.humidity);
-        if (updatedHive.history.humidity.length > 30) updatedHive.history.humidity.shift();
-        
-        // Update varroa (less frequent changes)
-        if (Math.random() > 0.7) {
-          updatedHive.sensors.varroa = simulateSensorChange(
-            selectedHive.sensors.varroa, -0.05, 0.1
-          );
-          updatedHive.history.varroa.push(updatedHive.sensors.varroa);
-          if (updatedHive.history.varroa.length > 30) updatedHive.history.varroa.shift();
-        }
-        
-        // Update weight (slow changes)
-        updatedHive.sensors.weight = simulateSensorChange(
-          selectedHive.sensors.weight, -0.1, 0.2
-        );
-        updatedHive.history.weight.push(updatedHive.sensors.weight);
-        if (updatedHive.history.weight.length > 30) updatedHive.history.weight.shift();
-        
-        // Update timestamp
-        updatedHive.lastUpdated = new Date().toISOString();
-        
-        // Save all changes at once to the store and database
-        dispatch(saveHive(updatedHive));
+      if (hives && hives.length > 0) {
+        syncDataFromFirebase();
       }
-    }, 10000);
+    }, 30000); // 30 seconds
     
     return () => clearInterval(interval);
-  }, [selectedHive, dispatch]);
+  }, [hives, dispatch]);
+  
+  // Function to manually sync data from Firebase
+  const syncDataFromFirebase = async () => {
+    if (hives.length === 0) return;
+    
+    setIsSyncing(true);
+    try {
+      await dispatch(syncAllHivesData()).unwrap();
+    } catch (error) {
+      console.error('Error syncing data:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
   
   const handleHiveSelect = (hiveId) => {
     dispatch(selectHive(hiveId));
@@ -238,17 +210,36 @@ const DashboardScreen = ({ navigation }) => {
         ]}>
           Hive Dashboard
         </Text>
-        <TouchableOpacity 
-          style={styles.notificationButton}
-          onPress={() => navigation.navigate('Notifications')}
-        >
-          <Ionicons 
-            name="notifications" 
-            size={24} 
-            color={currentTheme?.colors?.primary || theme.colors.primary} 
+        
+        <View style={styles.headerButtons}>
+          {/* Use the SyncButton component */}
+          <SyncButton 
+            onPress={syncDataFromFirebase}
+            isSyncing={isSyncing}
           />
-        </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons 
+              name="notifications" 
+              size={24} 
+              color={currentTheme?.colors?.primary || theme.colors.primary} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
+      
+      {/* Last synced indicator */}
+      {lastSynced && (
+        <Text style={[styles.lastSyncedText, { 
+          color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey,
+          textAlign: 'center'
+        }]}>
+          Last synced: {formatDateTime(lastSynced)}
+        </Text>
+      )}
       
       {/* Hive Selector */}
       <ScrollView 
@@ -619,6 +610,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.text,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   notificationButton: {
     padding: theme.spacing.small,
   },
@@ -747,6 +742,11 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: theme.layout.borderRadiusMedium,
     overflow: 'hidden',
+  },
+  lastSyncedText: {
+    fontSize: theme.typography.bodyTiny,
+    marginBottom: theme.spacing.small,
+    marginTop: -theme.spacing.small,
   },
 });
 
