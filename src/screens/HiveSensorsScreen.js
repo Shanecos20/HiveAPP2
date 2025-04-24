@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import theme from '../utils/theme';
 import Card from '../components/common/Card';
 import StatusBadge from '../components/common/StatusBadge';
 import { formatDateTime } from '../utils/helpers';
+import { syncAllHivesData } from '../redux/hiveSlice';
 
 const HiveSensorsScreen = ({ route, navigation }) => {
   const { hiveId } = route.params || {};
@@ -16,66 +17,28 @@ const HiveSensorsScreen = ({ route, navigation }) => {
   );
   
   const [isConnecting, setIsConnecting] = useState(false);
-  
-  // List of available sensors that could be in a hive
-  const sensors = [
-    { 
-      id: 'temperature', 
-      name: 'Temperature Sensor', 
-      icon: 'thermometer',
-      color: theme.colors.error,
-      value: hive?.sensors?.temperature,
-      unit: '°C',
-      isActive: true,
-      description: 'Monitors internal hive temperature in real-time'
-    },
-    { 
-      id: 'humidity', 
-      name: 'Humidity Sensor', 
-      icon: 'water',
-      color: theme.colors.info,
-      value: hive?.sensors?.humidity,
-      unit: '%',
-      isActive: true,
-      description: 'Tracks humidity levels inside the hive'
-    },
-    { 
-      id: 'weight', 
-      name: 'Weight Sensor', 
-      icon: 'scale',
-      color: theme.colors.success,
-      value: hive?.sensors?.weight,
-      unit: 'kg',
-      isActive: true,
-      description: 'Measures the total weight of the hive'
-    },
-    { 
-      id: 'varroa', 
-      name: 'Varroa Monitor', 
-      icon: 'bug',
-      color: theme.colors.warning,
-      value: hive?.sensors?.varroa,
-      unit: '',
-      isActive: true,
-      description: 'Detects varroa mite infestation levels'
-    },
-    { 
-      id: 'sound', 
-      name: 'Sound Analysis', 
-      icon: 'mic',
-      color: theme.colors.secondary,
-      isActive: false,
-      description: 'Acoustic monitoring for swarm prediction (not connected)'
-    },
-    { 
-      id: 'camera', 
-      name: 'Entrance Monitor', 
-      icon: 'videocam',
-      color: theme.colors.darkGrey,
-      isActive: false,
-      description: 'Visual bee traffic monitoring (not connected)'
-    }
+  const dispatch = useDispatch();
+
+  // Sync latest sensor data from Firebase on mount
+  useEffect(() => {
+    if (hiveId) dispatch(syncAllHivesData());
+  }, [dispatch, hiveId]);
+
+  // Define metadata for all possible sensors
+  const sensorDefs = [
+    { id: 'temperature', name: 'Temperature Sensor', icon: 'thermometer', color: theme.colors.error, unit: '°C', description: 'Monitors internal hive temperature in real-time' },
+    { id: 'humidity',    name: 'Humidity Sensor',    icon: 'water',       color: theme.colors.info,    unit: '%', description: 'Tracks humidity levels inside the hive' },
+    { id: 'weight',      name: 'Weight Sensor',      icon: 'scale',       color: theme.colors.success, unit: 'kg', description: 'Measures the total weight of the hive' },
+    { id: 'varroa',      name: 'Varroa Monitor',     icon: 'bug',         color: theme.colors.warning, unit: '',  description: 'Detects varroa mite infestation levels' },
+    { id: 'sound',       name: 'Sound Analysis',     icon: 'mic',         color: theme.colors.secondary, unit: '', description: 'Acoustic monitoring for swarm prediction' },
+    { id: 'camera',      name: 'Entrance Monitor',   icon: 'videocam',    color: theme.colors.darkGrey,  unit: '', description: 'Visual bee traffic monitoring' }
   ];
+  
+  // Build runtime sensors with values and connection state
+  const sensors = sensorDefs.map(def => {
+    const v = hive?.sensors?.[def.id];
+    return { ...def, value: v, isActive: v != null };
+  });
   
   if (!hive) {
     return (
@@ -98,15 +61,22 @@ const HiveSensorsScreen = ({ route, navigation }) => {
     );
   }
   
-  const handleConnect = (sensorId) => {
+  const handleConnect = async (sensorId) => {
     setIsConnecting(true);
-    
-    // Simulate connecting to a sensor
-    setTimeout(() => {
-      setIsConnecting(false);
-      // In a real app, you would update the Redux state here
-      // to mark the sensor as connected
-    }, 2000);
+    try {
+      // Write initial placeholder value into Firebase
+      const dbUrl = 'https://hive-f7c39-default-rtdb.europe-west1.firebasedatabase.app';
+      await fetch(`${dbUrl}/hives/${hiveId}/sensors/${sensorId}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(0)
+      });
+      // Re-sync data into Redux
+      await dispatch(syncAllHivesData());
+    } catch (err) {
+      console.error('Error connecting sensor:', err);
+    }
+    setIsConnecting(false);
   };
   
   return (
