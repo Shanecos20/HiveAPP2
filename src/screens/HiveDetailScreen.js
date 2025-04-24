@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Image, TouchableWithoutFeedback } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { LineChart } from 'react-native-chart-kit';
 import LineChartWrapper from '../components/common/LineChartWrapper';
@@ -12,6 +12,7 @@ import theme from '../utils/theme';
 import { formatDateTime, getRecommendation } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
 import { deleteHive, syncAllHivesData } from '../redux/hiveSlice';
+import { WebView } from 'react-native-webview';
 
 const HiveDetailScreen = ({ route, navigation }) => {
   const { hiveId } = route.params;
@@ -23,6 +24,33 @@ const HiveDetailScreen = ({ route, navigation }) => {
   
   // Track syncing state
   const [isSyncing, setIsSyncing] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  
+  // Extract YouTube video ID and thumbnail URL
+  const videoId = 'qZW5eYd0Yw8';
+  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  
+  // Build HTML wrapper to hide YouTube chrome before iframe loads
+  const videoHTML = useMemo(() => `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0">
+      <style>
+        body,html { margin:0; padding:0; background:transparent; }
+        .video-container { position:absolute; top:0; left:0; width:100%; height:100%; }
+        .video-container iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
+      </style>
+    </head>
+    <body>
+      <div class="video-container">
+        <iframe src="https://www.youtube-nocookie.com/embed/qZW5eYd0Yw8?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&fs=0&iv_load_policy=3"
+          allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen>
+        </iframe>
+      </div>
+    </body>
+    </html>
+  `, []);
   
   // Sync data from Firebase
   const syncData = async () => {
@@ -89,6 +117,17 @@ const HiveDetailScreen = ({ route, navigation }) => {
       {
         data: hive.history.weight.slice(-6),
         color: () => theme.colors.success,
+        strokeWidth: 2,
+      },
+    ],
+  };
+  
+  const soundData = {
+    labels: ['', '', '', '', '', ''],
+    datasets: [
+      {
+        data: hive.history.sound?.slice(-6) || [],
+        color: () => theme.colors.secondary,
         strokeWidth: 2,
       },
     ],
@@ -387,6 +426,60 @@ const HiveDetailScreen = ({ route, navigation }) => {
         />
       </Card>
       
+      {/* Sound Level Chart */}
+      {hive.history.sound && (
+        <Card title="Sound Level (dB)"
+              style={{ backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white }}>
+          <View style={styles.sensorHeader}>
+            <View style={styles.currentValue}>
+              <Text style={[styles.currentValueText, { color: currentTheme?.colors?.text || theme.colors.black }]}>
+                Current: {hive.sensors.sound} dB
+              </Text>
+            </View>
+          </View>
+          <LineChartWrapper
+            data={soundData}
+            width={screenWidth}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            withDots
+            style={styles.chart}
+          />
+        </Card>
+      )}
+      
+      {/* Camera Entrance Monitor Video */}
+      {hive.sensors.camera != null && (
+        <Card title="Entrance Monitor" style={{ backgroundColor: theme.colors.white }}>
+          <View style={styles.videoContainer}>
+            {/* Static thumbnail to prevent UI flicker */}
+            <Image
+              source={{ uri: thumbnailUrl }}
+              style={styles.thumbnail}
+              resizeMode="cover"
+            />
+            <WebView
+              pointerEvents="none"
+              originWhitelist={["*"]}
+              source={{ html: videoHTML }}
+              style={[styles.webview, { opacity: videoLoaded ? 1 : 0 }]}
+              onLoadStart={() => setVideoLoaded(false)}
+              onLoadEnd={() => setTimeout(() => setVideoLoaded(true), 3000)}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+            />
+            {!videoLoaded && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={currentTheme?.colors?.primary || theme.colors.primary} />
+              </View>
+            )}
+          </View>
+        </Card>
+      )}
+      
       {/* Notes Section */}
       <Card 
         title="Notes"
@@ -600,6 +693,34 @@ const styles = StyleSheet.create({
   },
   notesText: {
     fontSize: theme.typography.bodyMedium,
+  },
+  videoContainer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    backgroundColor: 'transparent',
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   syncButton: {
     marginRight: theme.spacing.tiny,

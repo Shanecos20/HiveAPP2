@@ -370,6 +370,8 @@ class DatabaseService {
             humidity: [firebaseData.sensors.humidity].filter(v => v !== undefined),
             varroa: [firebaseData.sensors.varroa].filter(v => v !== undefined),
             weight: [firebaseData.sensors.weight].filter(v => v !== undefined),
+            sound: [firebaseData.sensors.sound].filter(v => v !== undefined),
+            camera: [firebaseData.sensors.camera].filter(v => v !== undefined),
           },
           createdAt: new Date().toISOString(),
           lastUpdated: firebaseData.sensors.timestamp
@@ -423,13 +425,16 @@ class DatabaseService {
                  : new Date().toISOString();
              hive.status = this.determineHiveStatus(firebaseSensorData);
 
-             // Update history
+             // Update history for all sensor keys (including new ones)
              Object.keys(firebaseSensorData).forEach(key => {
-                 if (key !== 'timestamp' && hive.history[key] !== undefined) {
-                     hive.history[key].push(firebaseSensorData[key]);
-                     if (hive.history[key].length > 30) { // Keep last 30 readings
-                         hive.history[key].shift();
-                     }
+                 if (key === 'timestamp') return;
+                 // Ensure history array exists
+                 if (!Array.isArray(hive.history[key])) {
+                     hive.history[key] = [];
+                 }
+                 hive.history[key].push(firebaseSensorData[key]);
+                 if (hive.history[key].length > 30) { // Keep last 30 readings
+                     hive.history[key].shift();
                  }
              });
 
