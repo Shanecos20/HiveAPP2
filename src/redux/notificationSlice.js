@@ -25,7 +25,7 @@ const notificationSlice = createSlice({
   reducers: {
     addNotification: (state, action) => {
       const notification = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         timestamp: new Date().toISOString(),
         read: false,
         ...action.payload,
@@ -95,20 +95,37 @@ const notificationSlice = createSlice({
           message = `Potential swarming detected in ${hiveName}. Sudden weight drop observed.`;
           severity = 'high';
           break;
+        case 'varroa_outbreak':
         case 'varroa':
-          title = 'Varroa Mite Alert';
-          message = `High varroa mite levels detected in ${hiveName}. Treatment recommended.`;
+          title = 'Varroa Mite Outbreak!';
+          message = `Alert: Varroa mite infestation detected in ${hiveName}. Treatment recommended immediately.`;
           severity = 'high';
           break;
+        case 'temperature_spike':
         case 'temperature':
-          title = 'Temperature Warning';
-          message = `Abnormal temperature in ${hiveName}. Current readings outside optimal range.`;
+          title = 'Temperature Spike Alert';
+          message = `Sudden temperature spike detected in ${hiveName}. Check hive conditions.`;
           severity = 'medium';
           break;
         case 'humidity':
           title = 'Humidity Alert';
           message = `Humidity levels in ${hiveName} are outside the optimal range.`;
           severity = 'medium';
+          break;
+        case 'honey_harvest':
+          title = 'Honey Harvest Ready';
+          message = `Honey supers in ${hiveName} are ready for harvest.`;
+          severity = 'low';
+          break;
+        case 'treatment':
+          title = 'Treatment Reminder';
+          message = `Scheduled treatment time for ${hiveName}. Administer necessary treatments.`;
+          severity = 'medium';
+          break;
+        case 'feeding':
+          title = 'Feeding Alert';
+          message = `${hiveName} requires feeding soon. Ensure adequate food supply.`;
+          severity = 'low';
           break;
         default:
           title = 'Hive Alert';
@@ -117,7 +134,7 @@ const notificationSlice = createSlice({
       }
       
       const notification = {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         title,
         message,
         severity,

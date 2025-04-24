@@ -31,6 +31,7 @@ import CustomTabBar from './src/components/navigation/CustomTabBar';
 import databaseService from './src/services/databaseService';
 import { fetchHives } from './src/redux/hiveSlice';
 import { checkAuthState } from './src/redux/authSlice';
+import { triggerTestNotification } from './src/redux/notificationSlice';
 
 // Import theme
 import theme from './src/utils/theme';
@@ -41,6 +42,19 @@ const Tab = createBottomTabNavigator();
 // App initialization component
 const AppInitializer = ({ children }) => {
   const dispatch = useDispatch();
+  
+  // Subscribe to Firebase realtime 'events' node to dispatch notifications
+  useEffect(() => {
+    databaseService.subscribeToEvents(({ hiveId, eventType, type: payloadType }) => {
+      // Use the eventType from Firebase or fallback to type
+      const type = eventType || payloadType;
+      const state = store.getState();
+      const hiveList = state.hives.hives;
+      const hive = hiveList.find(h => h.id === hiveId);
+      const hiveName = hive ? hive.name : '';
+      dispatch(triggerTestNotification({ type, hiveName, hiveId }));
+    });
+  }, [dispatch]);
   
   useEffect(() => {
     const initializeApp = async () => {

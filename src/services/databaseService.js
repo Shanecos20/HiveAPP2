@@ -1,9 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import axios from 'axios';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, onChildAdded } from 'firebase/database';
 
 // Firebase database URL (same as the one used in Unity simulator)
 const FIREBASE_DATABASE_URL = 'https://hive-f7c39-default-rtdb.europe-west1.firebasedatabase.app';
+
+// Initialize Firebase App and Realtime Database for events
+const firebaseConfig = {
+  databaseURL: FIREBASE_DATABASE_URL,
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const realtimeDb = getDatabase(firebaseApp);
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -636,6 +645,25 @@ class DatabaseService {
     } catch (error) {
       console.error('Error importing data:', error);
       return false;
+    }
+  }
+
+  // Subscribe to realtime 'events' node for new event entries
+  subscribeToEvents(callback) {
+    if (!this.firebaseEnabled) {
+      console.warn('Firebase events subscription is disabled.');
+      return;
+    }
+    try {
+      const eventsRef = ref(realtimeDb, 'events');
+      onChildAdded(eventsRef, snapshot => {
+        const eventData = snapshot.val();
+        const eventId = snapshot.key;
+        callback({ id: eventId, ...eventData });
+      });
+      console.log('Subscribed to Firebase events node.');
+    } catch (error) {
+      console.error('Error subscribing to Firebase events:', error);
     }
   }
 }
