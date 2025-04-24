@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
 // - Linux: Run 'ip addr show' in Terminal and look for the 'inet' address under your active network interface.
 //
 // Replace 'YOUR_COMPUTER_IP_ADDRESS' with the actual IP you found.
-// The port (3003) should match the SERVER_PORT in your server/.env file.
+// The port (3001) should match the SERVER_PORT in your server/.env file.
 const PROXY_SERVER_BASE_URL = `http://192.168.1.5:3001/api`; // <-- Ensure port is 3001
 
 // --- DEVELOPMENT ONLY ---
