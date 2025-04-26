@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onChildAdded } from 'firebase/database';
+import { getDatabase, ref, onChildAdded, query, limitToLast, orderByKey, orderByChild, startAt } from 'firebase/database';
 
 // Firebase database URL (same as the one used in Unity simulator)
 const FIREBASE_DATABASE_URL = 'https://hive-f7c39-default-rtdb.europe-west1.firebasedatabase.app';
@@ -418,7 +418,7 @@ class DatabaseService {
   }
   
   // Subscribe to Firebase events
-  subscribeToEvents(callback) {
+  subscribeToEvents(callback, lastKnownTimestamp = 0) {
     if (!this.firebaseEnabled) {
       console.log('Firebase events disabled');
       return () => {};
@@ -426,18 +426,60 @@ class DatabaseService {
     
     try {
       const eventsRef = ref(realtimeDb, 'events');
+      console.log(`[databaseService] Attempting to attach Firebase listener to /events, starting after timestamp: ${lastKnownTimestamp}`);
       
-      // Set up event listener
-      const unsubscribe = onChildAdded(eventsRef, (snapshot) => {
-        const event = snapshot.val();
-        if (event && typeof callback === 'function') {
-          callback(event);
+      // Query to get events ordered by timestamp, starting after the last known one
+      // Firebase timestamps are often numbers (milliseconds since epoch)
+      const eventsQuery = query(
+        eventsRef,
+        orderByChild('timestamp'), // Order by the timestamp field
+        startAt(lastKnownTimestamp + 1) // Start at the next millisecond
+      );
+      
+      // Create a set to track processed event keys for this session
+      const processedEventKeys = new Set();
+      
+      // Set up event listener for newly added children matching the query
+      const unsubscribe = onChildAdded(eventsQuery, (snapshot) => {
+        const eventKey = snapshot.key;
+        
+        // Secondary check: Skip if we've already processed this key in this session
+        if (processedEventKeys.has(eventKey)) {
+          return;
         }
+        processedEventKeys.add(eventKey);
+        
+        const event = snapshot.val();
+        if (event) {
+          // Ensure timestamp exists (redundant with query, but safe)
+          const eventTimestamp = event.timestamp || Date.now();
+          
+          // Defensive check: ensure event is actually newer (Firebase queries can sometimes be approximate)
+          if (eventTimestamp <= lastKnownTimestamp) {
+             console.warn(`[databaseService] Received event ${eventKey} with timestamp ${eventTimestamp} which is not newer than ${lastKnownTimestamp}. Skipping.`);
+             return;
+          }
+
+          console.log('[databaseService] New Firebase event detected:', eventKey, event);
+          
+          // Pass the event to the callback
+          if (typeof callback === 'function') {
+            callback({
+              ...event,
+              timestamp: eventTimestamp, // Ensure we use the determined timestamp
+              key: eventKey
+            });
+          }
+        }
+      }, (error) => {
+        console.error('[databaseService] Firebase listener error:', error);
       });
+      
+      console.log('[databaseService] Firebase listener attached successfully.');
       
       return unsubscribe; // Return function to unsubscribe
     } catch (error) {
-      console.error('Error subscribing to Firebase events:', error);
+      console.error('[databaseService] Error subscribing to Firebase events:', error);
       return () => {}; // Return empty function as fallback
     }
   }

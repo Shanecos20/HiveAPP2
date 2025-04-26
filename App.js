@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -31,7 +31,7 @@ import CustomTabBar from './src/components/navigation/CustomTabBar';
 import databaseService from './src/services/databaseService';
 import { fetchHives } from './src/redux/hiveSlice';
 import { checkAuthState } from './src/redux/authSlice';
-import { triggerTestNotification } from './src/redux/notificationSlice';
+import { triggerTestNotification, processFirebaseEvent } from './src/redux/notificationSlice';
 
 // Import theme
 import theme from './src/utils/theme';
@@ -44,43 +44,72 @@ const AppInitializer = ({ children }) => {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector(state => state.auth);
   const { hives } = useSelector(state => state.hives);
+  const { lastEventTimestamp } = useSelector(state => state.notifications);
   const [unsubscribeEvents, setUnsubscribeEvents] = useState(null);
+  const lastProcessedTimestampRef = useRef(lastEventTimestamp);
+  const hasHives = hives && hives.length > 0; // Check if there are hives
+  
+  // Keep reference of lastEventTimestamp up to date without triggering effect
+  useEffect(() => {
+    lastProcessedTimestampRef.current = lastEventTimestamp;
+  }, [lastEventTimestamp]);
   
   // Subscribe to Firebase realtime 'events' node to dispatch notifications
   // But only when authenticated AND there's at least one hive
   useEffect(() => {
+    console.log(`[AppInitializer] Subscription effect running. Auth: ${isAuthenticated}, HasHives: ${hasHives}`);
     // Clean up previous subscription if it exists
     if (unsubscribeEvents) {
+      console.log('[AppInitializer] Cleaning up previous Firebase listener.');
       unsubscribeEvents();
       setUnsubscribeEvents(null);
     }
     
     // Only subscribe if user is authenticated and has at least one hive
-    if (isAuthenticated && hives && hives.length > 0) {
-      const unsubscribe = databaseService.subscribeToEvents(({ hiveId, eventType, type: payloadType }) => {
+    if (isAuthenticated && hasHives) { // Use hasHives here
+      // Retrieve the most recent timestamp we know we've processed
+      const currentLastTimestamp = lastProcessedTimestampRef.current || 0;
+      console.log(`[AppInitializer] Setting up Firebase event subscription, starting after: ${currentLastTimestamp}`);
+      
+      // Pass the timestamp to the subscription service
+      const unsubscribe = databaseService.subscribeToEvents((event) => {
+        // Extract data from the event
+        const { hiveId, eventType, type: payloadType, timestamp, key: eventKey } = event; // Include eventKey
+        
         // Use the eventType from Firebase or fallback to type
         const type = eventType || payloadType;
-        const state = store.getState();
-        const hiveList = state.hives.hives;
+        const state = store.getState(); // Be cautious getting state here, might be stale
+        const currentHives = state.hives.hives; // Get current hives from state
         
         // Only process notifications for hives that belong to the user
-        const hive = hiveList.find(h => h.id === hiveId);
+        const hive = currentHives.find(h => h.id === hiveId);
         if (hive) {
           const hiveName = hive.name || hiveId;
-          dispatch(triggerTestNotification({ type, hiveName, hiveId }));
+          console.log(`[AppInitializer] Processing Firebase event: ${eventKey} for hive: ${hiveName}, type: ${type}`);
+          
+          // Process the event through Redux
+          dispatch(processFirebaseEvent({ 
+            event: { type, hiveName, hiveId, timestamp, key: eventKey } // Timestamp is already validated
+          }));
+        } else {
+          console.log(`[AppInitializer] Ignoring event ${eventKey} for unknown or non-user hive: ${hiveId}`);
         }
-      });
+      }, currentLastTimestamp); // Pass the timestamp here
       
-      setUnsubscribeEvents(unsubscribe);
+      setUnsubscribeEvents(() => unsubscribe); // Use functional update for state
+    } else {
+      console.log('[AppInitializer] Conditions not met for subscription (Auth/Hives).');
     }
     
-    // Cleanup on unmount
+    // Cleanup on effect re-run or unmount
     return () => {
       if (unsubscribeEvents) {
+        console.log('[AppInitializer] Running cleanup for Firebase listener.');
         unsubscribeEvents();
       }
     };
-  }, [dispatch, isAuthenticated, hives]);
+  // Depend on isAuthenticated and whether hives exist (hasHives)
+  }, [dispatch, isAuthenticated, hasHives]);
   
   useEffect(() => {
     const initializeApp = async () => {

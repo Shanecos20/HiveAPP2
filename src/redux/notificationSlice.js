@@ -17,6 +17,7 @@ const initialState = {
   },
   showNotificationPopup: false,
   latestNotification: null,
+  lastEventTimestamp: 0, // Track the timestamp of the last processed event
 };
 
 const notificationSlice = createSlice({
@@ -82,6 +83,99 @@ const notificationSlice = createSlice({
       if (state.thresholds[sensorType]) {
         if (min !== undefined) state.thresholds[sensorType].min = min;
         if (max !== undefined) state.thresholds[sensorType].max = max;
+      }
+    },
+    
+    processFirebaseEvent: (state, action) => {
+      const { event } = action.payload;
+      const { type, hiveName, hiveId, timestamp } = event;
+      
+      // Generate a unique ID based on hiveId, type and timestamp to avoid duplicates
+      const eventId = `${hiveId}-${type}-${timestamp}`;
+      
+      // Check if we already have this notification (based on eventId)
+      const isDuplicate = state.notifications.some(n => 
+        n.eventId === eventId || 
+        (n.hiveId === hiveId && n.type === type && n.eventTimestamp === timestamp)
+      );
+      
+      if (isDuplicate) {
+        console.log('Skipping duplicate notification:', eventId);
+        return;
+      }
+      
+      // Always update the last processed timestamp if newer
+      if (timestamp && (!state.lastEventTimestamp || timestamp > state.lastEventTimestamp)) {
+        state.lastEventTimestamp = timestamp;
+      }
+      
+      // Create a notification from the event
+      let title, message, severity;
+      
+      switch (type) {
+        case 'swarm':
+          title = 'Swarming Alert!';
+          message = `Potential swarming detected in ${hiveName}. Sudden weight drop observed.`;
+          severity = 'high';
+          break;
+        case 'varroa_outbreak':
+        case 'varroa':
+          title = 'Varroa Mite Outbreak!';
+          message = `Alert: Varroa mite infestation detected in ${hiveName}. Treatment recommended immediately.`;
+          severity = 'high';
+          break;
+        case 'temperature_spike':
+        case 'temperature':
+          title = 'Temperature Spike Alert';
+          message = `Sudden temperature spike detected in ${hiveName}. Check hive conditions.`;
+          severity = 'medium';
+          break;
+        case 'humidity':
+          title = 'Humidity Alert';
+          message = `Humidity levels in ${hiveName} are outside the optimal range.`;
+          severity = 'medium';
+          break;
+        case 'honey_harvest':
+          title = 'Honey Harvest Ready';
+          message = `Honey supers in ${hiveName} are ready for harvest.`;
+          severity = 'low';
+          break;
+        case 'treatment':
+          title = 'Treatment Reminder';
+          message = `Scheduled treatment time for ${hiveName}. Administer necessary treatments.`;
+          severity = 'medium';
+          break;
+        case 'feeding':
+          title = 'Feeding Alert';
+          message = `${hiveName} requires feeding soon. Ensure adequate food supply.`;
+          severity = 'low';
+          break;
+        default:
+          title = 'Hive Alert';
+          message = `There is a potential issue with ${hiveName}.`;
+          severity = 'low';
+      }
+      
+      const notification = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        eventId, // Store the event ID for duplicate checking
+        title,
+        message,
+        severity,
+        timestamp: new Date().toISOString(),
+        hiveId,
+        type,
+        read: false,
+        eventTimestamp: timestamp // Store the original event timestamp for reference
+      };
+      
+      state.notifications.unshift(notification);
+      state.showNotificationPopup = true;
+      state.latestNotification = notification;
+      
+      // Keep only the last 50 notifications
+      if (state.notifications.length > 50) {
+        state.notifications = state.notifications.slice(0, 50);
       }
     },
     
@@ -159,7 +253,8 @@ export const {
   dismissAllNotifications,
   hideNotificationPopup,
   updateThresholds,
-  triggerTestNotification
+  triggerTestNotification,
+  processFirebaseEvent
 } = notificationSlice.actions;
 
 export default notificationSlice.reducer; 
