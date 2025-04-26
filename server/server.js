@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose'); // add mongoose require
 // const axios = require('axios'); // Remove axios dependency for this test
 const https = require('https'); // Use Node's built-in HTTPS module
 const cors = require('cors');
@@ -33,6 +34,14 @@ app.use(express.json()); // Parse JSON request bodies
 // Debug: Log API key presence (not the actual key)
 console.log(`API key loaded: ${OPENROUTER_API_KEY ? 'YES' : 'NO'}`);
 console.log(`API key length: ${OPENROUTER_API_KEY ? OPENROUTER_API_KEY.length : 0}`);
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => {
+    console.error('Failed to connect to MongoDB', err);
+    process.exit(1);
+  });
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
@@ -137,6 +146,17 @@ app.post('/api/chat', async (req, res) => {
         });
     }
 });
+
+// Mount database API routes
+const userRoutes = require('./routes/users');
+const hiveRoutes = require('./routes/hives');
+const settingsRoutes = require('./routes/settings');
+const devicesRoutes = require('./routes/devices');
+
+app.use('/api/users', userRoutes);
+app.use('/api/hives', hiveRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/devices', devicesRoutes);
 
 // Start the server
 app.listen(PORT, () => {
