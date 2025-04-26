@@ -15,7 +15,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const realtimeDb = getDatabase(firebaseApp);
 
 // API base URL - change to your actual deployed server URL
-const API_BASE_URL = 'https://your-server-domain.com/api';
+const API_BASE_URL = 'https://hiveapp2.onrender.com/api';
 
 // Token storage key
 const TOKEN_STORAGE_KEY = '@hiveapp:auth_token';
@@ -238,6 +238,36 @@ class DatabaseService {
       return response.data;
     } catch (error) {
       console.error('Error updating hive sensors:', error);
+      throw error;
+    }
+  }
+
+  // Update local hive sensor data from Firebase
+  async updateLocalHiveSensors(hiveId) {
+    try {
+      // Fetch the latest data from Firebase
+      const firebaseData = await this.fetchFirebaseHiveData(hiveId);
+      
+      if (!firebaseData || !firebaseData.sensors) {
+        console.warn(`No sensor data found in Firebase for hive ID: ${hiveId}`);
+        return null;
+      }
+      
+      // Update the hive with the latest sensor data in our backend
+      try {
+        const updatedHive = await axios.put(
+          `${API_BASE_URL}/hives/${hiveId}/sensors`, 
+          { sensors: firebaseData.sensors }, 
+          this.getConfig()
+        );
+        return updatedHive.data;
+      } catch (apiError) {
+        console.error(`Error updating hive ${hiveId} with new sensor data:`, apiError);
+        // Even if API update fails, still return Firebase data
+        return firebaseData;
+      }
+    } catch (error) {
+      console.error(`Error in updateLocalHiveSensors for hive ${hiveId}:`, error);
       throw error;
     }
   }

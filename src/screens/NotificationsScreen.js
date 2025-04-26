@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { markAsRead, markAllAsRead, dismissNotification } from '../redux/notificationSlice';
+import { markAsRead, markAllAsRead, dismissNotification, dismissAllNotifications } from '../redux/notificationSlice';
 import { formatDateTime, getSeverityColor } from '../utils/helpers';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,10 @@ const NotificationsScreen = ({ navigation }) => {
   
   const handleMarkAllAsRead = () => {
     dispatch(markAllAsRead());
+  };
+  
+  const handleClearAll = () => {
+    dispatch(dismissAllNotifications());
   };
   
   const handleNotificationPress = (notification) => {
@@ -154,17 +158,31 @@ const NotificationsScreen = ({ navigation }) => {
         </Text>
         
         {notifications.length > 0 && (
-          <TouchableOpacity 
-            style={styles.markAllButton}
-            onPress={handleMarkAllAsRead}
-          >
-            <Text style={[
-              styles.markAllText,
-              { color: currentTheme?.colors?.primary || theme.colors.primary }
-            ]}>
-              Mark All as Read
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={styles.markAllButton}
+              onPress={handleMarkAllAsRead}
+            >
+              <Text style={[
+                styles.markAllText,
+                { color: currentTheme?.colors?.primary || theme.colors.primary }
+              ]}>
+                Mark All as Read
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.clearAllButton}
+              onPress={handleClearAll}
+            >
+              <Text style={[
+                styles.clearAllText,
+                { color: currentTheme?.colors?.error || theme.colors.error }
+              ]}>
+                Clear All
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
       
@@ -208,12 +226,25 @@ const styles = StyleSheet.create({
     color: theme.colors.black,
     flex: 1,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   markAllButton: {
+    marginRight: theme.spacing.medium,
+    padding: theme.spacing.small,
+  },
+  clearAllButton: {
     padding: theme.spacing.small,
   },
   markAllText: {
     fontSize: theme.typography.bodySmall,
     color: theme.colors.primary,
+    fontWeight: 'bold',
+  },
+  clearAllText: {
+    fontSize: theme.typography.bodySmall,
+    color: theme.colors.error,
     fontWeight: 'bold',
   },
   listContainer: {

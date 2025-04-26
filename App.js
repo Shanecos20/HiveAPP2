@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -42,19 +42,45 @@ const Tab = createBottomTabNavigator();
 // App initialization component
 const AppInitializer = ({ children }) => {
   const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector(state => state.auth);
+  const { hives } = useSelector(state => state.hives);
+  const [unsubscribeEvents, setUnsubscribeEvents] = useState(null);
   
   // Subscribe to Firebase realtime 'events' node to dispatch notifications
+  // But only when authenticated AND there's at least one hive
   useEffect(() => {
-    databaseService.subscribeToEvents(({ hiveId, eventType, type: payloadType }) => {
-      // Use the eventType from Firebase or fallback to type
-      const type = eventType || payloadType;
-      const state = store.getState();
-      const hiveList = state.hives.hives;
-      const hive = hiveList.find(h => h.id === hiveId);
-      const hiveName = hive ? hive.name : '';
-      dispatch(triggerTestNotification({ type, hiveName, hiveId }));
-    });
-  }, [dispatch]);
+    // Clean up previous subscription if it exists
+    if (unsubscribeEvents) {
+      unsubscribeEvents();
+      setUnsubscribeEvents(null);
+    }
+    
+    // Only subscribe if user is authenticated and has at least one hive
+    if (isAuthenticated && hives && hives.length > 0) {
+      const unsubscribe = databaseService.subscribeToEvents(({ hiveId, eventType, type: payloadType }) => {
+        // Use the eventType from Firebase or fallback to type
+        const type = eventType || payloadType;
+        const state = store.getState();
+        const hiveList = state.hives.hives;
+        
+        // Only process notifications for hives that belong to the user
+        const hive = hiveList.find(h => h.id === hiveId);
+        if (hive) {
+          const hiveName = hive.name || hiveId;
+          dispatch(triggerTestNotification({ type, hiveName, hiveId }));
+        }
+      });
+      
+      setUnsubscribeEvents(unsubscribe);
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (unsubscribeEvents) {
+        unsubscribeEvents();
+      }
+    };
+  }, [dispatch, isAuthenticated, hives]);
   
   useEffect(() => {
     const initializeApp = async () => {

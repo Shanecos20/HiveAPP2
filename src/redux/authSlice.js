@@ -228,27 +228,27 @@ export const register = (email, password, name, userType) => async (dispatch) =>
     }
     
     // Register using database service
-    const result = await databaseService.registerUser({
+    const user = await databaseService.registerUser({
       email,
       password, // In a real app, this should be hashed
       name,
       userType,
     });
     
-    if (result.success) {
-      dispatch(registerSuccess(result.user));
+    if (user) {
+      dispatch(registerSuccess(user));
       
       // Initialize empty hives list for the new user
       dispatch(fetchHives());
       
       return true;
     } else {
-      dispatch(registerFailure(result.message || 'Registration failed'));
+      dispatch(registerFailure('Registration failed'));
       return false;
     }
   } catch (error) {
     console.error('Error during registration:', error);
-    dispatch(registerFailure('An error occurred during registration'));
+    dispatch(registerFailure(error.message || 'An error occurred during registration'));
     return false;
   }
 };
