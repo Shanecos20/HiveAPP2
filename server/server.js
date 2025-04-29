@@ -35,13 +35,34 @@ app.use(express.json()); // Parse JSON request bodies
 console.log(`API key loaded: ${OPENROUTER_API_KEY ? 'YES' : 'NO'}`);
 console.log(`API key length: ${OPENROUTER_API_KEY ? OPENROUTER_API_KEY.length : 0}`);
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
-    console.error('Failed to connect to MongoDB', err);
-    process.exit(1);
+// Connect to MongoDB with improved options
+mongoose.connect(process.env.MONGODB_URI, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true
+})
+.then(() => {
+  console.log('Connected to MongoDB');
+  
+  // Ensure all indexes are created after connection
+  mongoose.connection.db.listCollections().toArray((err, collections) => {
+    if (err) {
+      console.error('Error listing collections:', err);
+      return;
+    }
+    
+    console.log('MongoDB collections:', collections.map(c => c.name).join(', '));
+    
+    // Explicitly create indexes on Hive model
+    const Hive = require('./models/Hive');
+    Hive.createIndexes()
+      .then(() => console.log('Hive indexes created successfully'))
+      .catch(err => console.error('Error creating Hive indexes:', err));
   });
+})
+.catch(err => {
+  console.error('Failed to connect to MongoDB:', err);
+  process.exit(1);
+});
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
