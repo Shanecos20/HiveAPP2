@@ -60,6 +60,11 @@ router.post('/', auth, async (req, res) => {
   try {
     const { id, name, location, notes } = req.body;
     
+    // Validate required fields
+    if (!id) {
+      return res.status(400).json({ msg: 'Hive ID is required' });
+    }
+    
     // Check if hive already exists
     let existingHive = await Hive.findOne({ id, userId: req.user.id });
     if (existingHive) {
@@ -80,24 +85,29 @@ router.post('/', auth, async (req, res) => {
       // Create new hive with sensor data
       const newHive = new Hive({
         id,
-        name,
-        location,
-        notes,
+        name: name || `Hive ${id}`, // Default name if not provided
+        location: location || 'Unknown location', // Default location if not provided
+        notes: notes || '',
         userId: req.user.id,
         sensors: sensorData,
         status: determineHiveStatus(sensorData),
         lastUpdated: new Date(),
         history: {
-          temperature: [sensorData.temperature],
-          humidity: [sensorData.humidity],
-          weight: [sensorData.weight],
-          varroa: [sensorData.varroa]
+          temperature: sensorData.temperature ? [sensorData.temperature] : [],
+          humidity: sensorData.humidity ? [sensorData.humidity] : [],
+          weight: sensorData.weight ? [sensorData.weight] : [],
+          varroa: sensorData.varroa ? [sensorData.varroa] : []
         }
       });
       
-      await newHive.save();
-      console.log(`Hive ${id} successfully created for user ${req.user.id}`);
-      res.json(newHive);
+      try {
+        await newHive.save();
+        console.log(`Hive ${id} successfully created for user ${req.user.id}`);
+        return res.json(newHive);
+      } catch (saveError) {
+        console.error('Error saving new hive to database:', saveError);
+        return res.status(500).json({ msg: `Database error: ${saveError.message}` });
+      }
       
     } catch (error) {
       console.error('Error fetching from Firebase:', error.message);
@@ -165,7 +175,9 @@ router.put('/:id/sensors', auth, async (req, res) => {
     
     // Fetch fresh sensor data from Firebase
     try {
-      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${hiveId}/sensors.json`);
+      // Add cache-busting parameter to avoid cached responses
+      const timestamp = Date.now();
+      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${hiveId}/sensors.json?_cb=${timestamp}`);
       const sensorData = response.data;
       
       if (!sensorData) {
@@ -177,8 +189,18 @@ router.put('/:id/sensors', auth, async (req, res) => {
       hive.status = determineHiveStatus(sensorData);
       hive.lastUpdated = new Date();
       
-      // Update history
-      if (sensorData.temperature) {
+      // Initialize history arrays if they don't exist
+      if (!hive.history) {
+        hive.history = {
+          temperature: [],
+          humidity: [],
+          weight: [],
+          varroa: []
+        };
+      }
+      
+      // Update history with proper null checks
+      if (sensorData.temperature !== undefined && sensorData.temperature !== null) {
         if (!hive.history.temperature) hive.history.temperature = [];
         hive.history.temperature.push(sensorData.temperature);
         if (hive.history.temperature.length > 30) {
@@ -186,7 +208,7 @@ router.put('/:id/sensors', auth, async (req, res) => {
         }
       }
       
-      if (sensorData.humidity) {
+      if (sensorData.humidity !== undefined && sensorData.humidity !== null) {
         if (!hive.history.humidity) hive.history.humidity = [];
         hive.history.humidity.push(sensorData.humidity);
         if (hive.history.humidity.length > 30) {
@@ -194,7 +216,7 @@ router.put('/:id/sensors', auth, async (req, res) => {
         }
       }
       
-      if (sensorData.weight) {
+      if (sensorData.weight !== undefined && sensorData.weight !== null) {
         if (!hive.history.weight) hive.history.weight = [];
         hive.history.weight.push(sensorData.weight);
         if (hive.history.weight.length > 30) {
@@ -202,7 +224,7 @@ router.put('/:id/sensors', auth, async (req, res) => {
         }
       }
       
-      if (sensorData.varroa) {
+      if (sensorData.varroa !== undefined && sensorData.varroa !== null) {
         if (!hive.history.varroa) hive.history.varroa = [];
         hive.history.varroa.push(sensorData.varroa);
         if (hive.history.varroa.length > 30) {
@@ -210,12 +232,26 @@ router.put('/:id/sensors', auth, async (req, res) => {
         }
       }
       
-      await hive.save();
-      res.json(hive);
+      try {
+        await hive.save();
+        return res.json(hive);
+      } catch (saveError) {
+        console.error('Error saving updated hive data:', saveError);
+        return res.status(500).json({ msg: `Database error: ${saveError.message}` });
+      }
       
     } catch (error) {
       console.error('Error fetching from Firebase:', error.message);
-      return res.status(400).json({ msg: 'Error connecting to simulator database' });
+      
+      if (error.response) {
+        return res.status(error.response.status).json({ 
+          msg: `Error connecting to simulator database: ${error.response.status}` 
+        });
+      } else if (error.request) {
+        return res.status(500).json({ msg: 'Error connecting to simulator database: No response' });
+      } else {
+        return res.status(500).json({ msg: `Error connecting to simulator database: ${error.message}` });
+      }
     }
   } catch (err) {
     console.error('Error updating hive sensors:', err.message);
