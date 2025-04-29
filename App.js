@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -145,11 +146,14 @@ const NotificationWrapper = ({ children }) => {
       style={{ 
         flex: 1, 
         backgroundColor: currentTheme?.colors?.background || theme.colors.background,
-        marginTop: 50, // Negative margin to push content up
+        paddingTop: 30, // Explicitly set no padding to avoid pushing content down
       }}
-      edges={['right', 'left']} // Remove 'top' to prevent safe area insets at top
+      edges={['right', 'left']} // Exclude bottom so we handle it in the custom tab bar
     >
-      <View style={{ flex: 1 }}>
+      <View style={{ 
+        flex: 1,
+        backgroundColor: currentTheme?.colors?.background || theme.colors.background, 
+      }}>
         {children}
         {showNotificationPopup && <NotificationPopup notification={latestNotification} />}
       </View>
@@ -161,7 +165,23 @@ const NotificationWrapper = ({ children }) => {
 const ThemedStatusBar = () => {
   const { isDarkMode, theme: currentTheme } = useTheme();
   const statusBarBgColor = currentTheme?.colors?.statusBar || theme.colors.statusBar;
-  return <StatusBar style={isDarkMode ? 'light' : 'dark'} backgroundColor={statusBarBgColor} />;
+  
+  // Immediately set the native status bar color to avoid black flash
+  useEffect(() => {
+    // Set the native status bar immediately
+    RNStatusBar.setBarStyle(isDarkMode ? 'light-content' : 'dark-content', true);
+    RNStatusBar.setBackgroundColor(statusBarBgColor, true);
+  }, [isDarkMode, statusBarBgColor]);
+  
+  // Use StatusBar from expo-status-bar for further customization
+  return (
+    <StatusBar 
+      style={isDarkMode ? 'light' : 'dark'} 
+      backgroundColor={statusBarBgColor}
+      translucent={true}
+      animated={true}
+    />
+  );
 }
 
 // Main tab navigator with theme
@@ -248,7 +268,6 @@ export default function App() {
   // Custom insets with extra padding for Dynamic Island and bottom navigation
   const customSafeAreaInsets = {
     top: 0, // Remove all top spacing
-    bottom: 0, // We'll handle bottom in the CustomTabBar
     left: 0,
     right: 0,
   };

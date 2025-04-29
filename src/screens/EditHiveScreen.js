@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import theme from '../utils/theme';
 import { saveHive } from '../redux/hiveSlice';
 import QRCodeScanner from '../components/QRCodeScanner';
+import Button from '../components/common/Button';
 
 // Generate sample history data for new hives
 const generateSensorHistory = (baseValue, count = 6, variance = 5) => {
@@ -312,19 +313,13 @@ const EditHiveScreen = () => {
           </View>
         )}
         
-        <TouchableOpacity 
-          style={[styles.saveButton, {
-            backgroundColor: isSaving ? theme.colors.grey : theme.colors.primary,
-          }]}
+        <Button 
+          title={isAddMode ? 'Connect Hive' : 'Save Changes'}
           onPress={handleSave}
           disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator color={theme.colors.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>{isAddMode ? 'Connect Hive' : 'Save Changes'}</Text>
-          )}
-        </TouchableOpacity>
+          loading={isSaving}
+          variant="primary"
+        />
         
         {isAddMode && (
           <View style={styles.simulationNote}>
@@ -434,20 +429,6 @@ const styles = StyleSheet.create({
   sensorLabel: {
     fontSize: theme.typography.bodySmall,
     color: theme.colors.grey,
-  },
-  saveButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.layout.borderRadiusMedium,
-    padding: theme.spacing.medium,
-    alignItems: 'center',
-    marginTop: theme.spacing.large,
-    height: 50,
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    fontSize: theme.typography.bodyLarge,
-    fontWeight: 'bold',
-    color: theme.colors.white,
   },
   errorMessage: {
     backgroundColor: theme.colors.errorLight,

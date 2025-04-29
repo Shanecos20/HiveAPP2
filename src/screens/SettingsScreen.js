@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
+import Button from '../components/common/Button';
 
 const SettingsScreen = () => {
   const dispatch = useDispatch();
@@ -202,12 +203,11 @@ const SettingsScreen = () => {
           </View>
         </View>
         
-        <TouchableOpacity 
-          style={[styles.updateButton, { backgroundColor: currentTheme.colors.primary }]}
+        <Button 
+          title="Update Thresholds"
           onPress={handleUpdateThresholds}
-        >
-          <Text style={[styles.updateButtonText, { color: currentTheme.colors.white }]}>Update Thresholds</Text>
-        </TouchableOpacity>
+          variant="primary"
+        />
       </Card>
       
       {/* Test Notifications */}
@@ -253,37 +253,37 @@ const SettingsScreen = () => {
         </View>
         
         <View style={styles.testButtonsContainer}>
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: currentTheme.colors.error }]}
+          <Button 
+            title="Simulate Swarm"
             onPress={() => handleTestNotification('swarm')}
-          >
-            <Ionicons name="warning" size={24} color={currentTheme.colors.white} />
-            <Text style={styles.testButtonText}>Simulate Swarm</Text>
-          </TouchableOpacity>
+            variant="primary"
+            icon={<Ionicons name="warning" size={20} color="#F9A826" />}
+            style={styles.testButtonStyle}
+          />
           
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: currentTheme.colors.warning }]}
+          <Button 
+            title="Simulate Varroa Outbreak"
             onPress={() => handleTestNotification('varroa')}
-          >
-            <Ionicons name="bug" size={24} color={currentTheme.colors.white} />
-            <Text style={styles.testButtonText}>Simulate Varroa Outbreak</Text>
-          </TouchableOpacity>
+            variant="primary"
+            icon={<Ionicons name="bug" size={20} color="#F9A826" />}
+            style={styles.testButtonStyle}
+          />
           
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: currentTheme.colors.info }]}
+          <Button 
+            title="Simulate Temperature Spike"
             onPress={() => handleTestNotification('temperature')}
-          >
-            <Ionicons name="thermometer" size={24} color={currentTheme.colors.white} />
-            <Text style={styles.testButtonText}>Simulate Temperature Spike</Text>
-          </TouchableOpacity>
+            variant="primary"
+            icon={<Ionicons name="thermometer" size={20} color="#F9A826" />}
+            style={styles.testButtonStyle}
+          />
           
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: currentTheme.colors.primary }]}
+          <Button 
+            title="Simulate Humidity Alert"
             onPress={() => handleTestNotification('humidity')}
-          >
-            <Ionicons name="water" size={24} color={currentTheme.colors.white} />
-            <Text style={styles.testButtonText}>Simulate Humidity Alert</Text>
-          </TouchableOpacity>
+            variant="primary"
+            icon={<Ionicons name="water" size={20} color="#F9A826" />}
+            style={styles.testButtonStyle}
+          />
         </View>
       </Card>
       
@@ -330,13 +330,12 @@ const SettingsScreen = () => {
       </Card>
       
       {/* Logout Button */}
-      <TouchableOpacity 
-        style={[styles.logoutButton, { backgroundColor: currentTheme.colors.error }]}
+      <Button 
+        title="Logout"
         onPress={handleLogout}
-      >
-        <Ionicons name="log-out" size={20} color={currentTheme.colors.white} />
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
+        variant="primary"
+        icon={<Ionicons name="log-out" size={20} color="#F9A826" />}
+      />
       
       <View style={styles.versionContainer}>
         <Text style={[styles.versionText, { color: currentTheme.colors.grey }]}>HiveApp v1.0.0</Text>
@@ -423,17 +422,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.small,
     fontSize: theme.typography.bodyMedium,
   },
-  updateButton: {
-    borderRadius: theme.layout.borderRadiusMedium,
-    padding: theme.spacing.medium,
-    alignItems: 'center',
-    marginTop: theme.spacing.small,
-  },
-  updateButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-  },
   testHiveSelector: {
     marginBottom: theme.spacing.medium,
   },
@@ -459,20 +447,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  testButton: {
+  testButtonStyle: {
     width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.medium,
-    borderRadius: theme.layout.borderRadiusMedium,
     marginBottom: theme.spacing.medium,
-  },
-  testButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-    marginLeft: theme.spacing.small,
   },
   settingItem: {
     flexDirection: 'row',

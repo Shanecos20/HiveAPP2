@@ -382,24 +382,24 @@ const DashboardScreen = ({ navigation }) => {
             <Button
               title="Details"
               onPress={handleHiveDetails}
-              variant="secondary"
-              icon={<Ionicons name="stats-chart" size={20} color="#3B8132" />}
+              variant="primary"
+              icon={<Ionicons name="stats-chart" size={20} color="#F9A826" />}
               size="small"
             />
             
             <Button
               title="Edit"
               onPress={() => navigation.navigate('EditHive', { hiveId: selectedHive.id })}
-              variant="secondary"
-              icon={<Ionicons name="create" size={20} color="#3B8132" />}
+              variant="primary"
+              icon={<Ionicons name="create" size={20} color="#F9A826" />}
               size="small"
             />
             
             <Button
               title="Insights"
               onPress={() => navigation.navigate('Insights', { hiveId: selectedHive.id })}
-              variant="secondary"
-              icon={<Ionicons name="bulb" size={20} color="#3B8132" />}
+              variant="primary"
+              icon={<Ionicons name="bulb" size={20} color="#F9A826" />}
               size="small"
             />
           </View>

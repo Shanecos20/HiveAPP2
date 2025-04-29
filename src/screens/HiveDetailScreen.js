@@ -13,6 +13,7 @@ import { formatDateTime, getRecommendation } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
 import { deleteHive, syncAllHivesData } from '../redux/hiveSlice';
 import { WebView } from 'react-native-webview';
+import Button from '../components/common/Button';
 
 const HiveDetailScreen = ({ route, navigation }) => {
   const { hiveId } = route.params;
@@ -497,74 +498,40 @@ const HiveDetailScreen = ({ route, navigation }) => {
       
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={[
-            styles.actionButtonLarge,
-            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white }
-          ]}
+        <Button 
+          title="View AI Insights"
           onPress={() => navigation.navigate('Insights', { hiveId: hive.id })}
-        >
-          <Ionicons 
-            name="bulb" 
-            size={24} 
-            color={currentTheme?.colors?.primary || theme.colors.primary} 
-          />
-          <Text style={[
-            styles.actionButtonText,
-            { color: currentTheme?.colors?.text || theme.colors.black }
-          ]}>
-            View AI Insights
-          </Text>
-        </TouchableOpacity>
+          variant="primary"
+          icon={<Ionicons name="bulb" size={20} color="#F9A826" />}
+          style={styles.actionButtonStyle}
+        />
         
-        <TouchableOpacity 
-          style={[
-            styles.actionButtonLarge,
-            { backgroundColor: isDarkMode ? currentTheme?.colors?.card || theme.colors.darkGrey : theme.colors.white }
-          ]}
+        <Button 
+          title="Edit Hive"
           onPress={() => navigation.navigate('EditHive', { hiveId: hive.id })}
-        >
-          <Ionicons 
-            name="create" 
-            size={24} 
-            color={currentTheme?.colors?.primary || theme.colors.primary} 
-          />
-          <Text style={[
-            styles.actionButtonText,
-            { color: currentTheme?.colors?.text || theme.colors.black }
-          ]}>
-            Edit Hive
-          </Text>
-        </TouchableOpacity>
+          variant="primary"
+          icon={<Ionicons name="create" size={20} color="#F9A826" />}
+          style={styles.actionButtonStyle}
+        />
       </View>
       
       {/* Bottom action buttons */}
       <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity
-          style={[
-            styles.deleteButton,
-            { backgroundColor: currentTheme?.colors?.error || theme.colors.error }
-          ]}
+        <Button
+          title="Delete Hive"
           onPress={handleDeleteHive}
-        >
-          <Ionicons
-            name="trash-outline"
-            size={20}
-            color={theme.colors.white}
-          />
-          <Text style={styles.deleteButtonText}>Delete Hive</Text>
-        </TouchableOpacity>
+          variant="primary"
+          icon={<Ionicons name="trash-outline" size={20} color="#F9A826" />}
+          style={styles.deleteButtonStyle}
+        />
         
-        <TouchableOpacity 
-          style={[
-            styles.sensorsButton,
-            { backgroundColor: currentTheme?.colors?.secondary || theme.colors.secondary }
-          ]}
+        <Button 
+          title="Sensors"
           onPress={() => navigation.navigate('HiveSensors', { hiveId })}
-        >
-          <Ionicons name="hardware-chip" size={20} color={theme.colors.white} />
-          <Text style={styles.sensorsButtonText}>Sensors</Text>
-        </TouchableOpacity>
+          variant="primary"
+          icon={<Ionicons name="hardware-chip" size={20} color="#F9A826" />}
+          style={styles.sensorsButtonStyle}
+        />
       </View>
     </ScrollView>
   );
@@ -644,52 +611,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.medium,
     marginBottom: theme.spacing.large,
   },
-  actionButtonLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.medium,
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.layout.borderRadiusMedium,
+  actionButtonStyle: {
     flex: 0.48,
-    ...theme.layout.shadowProps,
-  },
-  actionButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    marginLeft: theme.spacing.small,
-    fontWeight: 'bold',
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: theme.spacing.medium,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.medium,
-    backgroundColor: theme.colors.error,
-    borderRadius: theme.layout.borderRadiusMedium,
-    marginRight: theme.spacing.small,
-  },
-  deleteButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    marginLeft: theme.spacing.small,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-  },
-  sensorsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: theme.spacing.medium,
-    backgroundColor: theme.colors.secondary,
-    borderRadius: theme.layout.borderRadiusMedium,
-  },
-  sensorsButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    marginLeft: theme.spacing.small,
-    fontWeight: 'bold',
-    color: theme.colors.white,
+    marginHorizontal: theme.spacing.tiny,
   },
   notesText: {
     fontSize: theme.typography.bodyMedium,
@@ -724,6 +648,20 @@ const styles = StyleSheet.create({
   },
   syncButton: {
     marginRight: theme.spacing.tiny,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.medium,
+    marginBottom: theme.spacing.large,
+    paddingHorizontal: theme.spacing.small,
+  },
+  deleteButtonStyle: {
+    flex: 1,
+    marginRight: theme.spacing.medium,
+  },
+  sensorsButtonStyle: {
+    flex: 1,
   },
 });
 

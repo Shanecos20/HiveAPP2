@@ -20,14 +20,17 @@ const ScreenContainer = ({
   
   // Calculate safe paddings - no top padding to push content up
   const paddingTop = 0; // No top padding at all
-  const paddingBottom = bottomInset ? Math.max(insets.bottom, 8) : 0;
+  
+  // Add padding to account for the tab bar height (60px) plus safe area
+  const tabBarHeight = 60 + Math.max(insets.bottom, 10);
+  const paddingBottom = bottomInset ? tabBarHeight : 0;
   
   const containerStyle = [
     styles.container,
     {
       backgroundColor: currentTheme?.colors?.background || theme.colors.background,
       paddingTop,
-      paddingBottom: scrollable ? paddingBottom : 0, // Only add bottom padding if scrollable
+      paddingBottom: scrollable ? 0 : 0, // ScrollView handles padding in contentContainerStyle
     },
     style,
   ];
@@ -36,7 +39,10 @@ const ScreenContainer = ({
     return (
       <ScrollView 
         style={containerStyle}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: paddingBottom }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {children}
@@ -45,7 +51,7 @@ const ScreenContainer = ({
   }
   
   return (
-    <View style={containerStyle}>
+    <View style={[containerStyle, { paddingBottom: paddingBottom }]}>
       {children}
     </View>
   );
@@ -55,7 +61,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: theme.spacing.medium,
-    marginTop: -10, // Negative margin to push content up even more
   },
   scrollContent: {
     flexGrow: 1,

@@ -8,6 +8,7 @@ import theme from '../utils/theme';
 import { formatDateTime, getRecommendation } from '../utils/helpers';
 import { getAiInsights } from '../services/aiService';
 import { useTheme } from '../contexts/ThemeContext';
+import Button from '../components/common/Button';
 
 const InsightsScreen = ({ navigation, route }) => {
   const { hives } = useSelector(state => state.hives);
@@ -191,24 +192,24 @@ const InsightsScreen = ({ navigation, route }) => {
       
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: currentTheme.colors.primary }]}
+        <Button 
+          title="View Detailed Data"
           onPress={() => navigation.navigate('HiveDetail', { hiveId: selectedHiveId })}
-        >
-          <Ionicons name="analytics" size={20} color={currentTheme.colors.white} />
-          <Text style={[styles.actionButtonText, { color: currentTheme.colors.white }]}>View Detailed Data</Text>
-        </TouchableOpacity>
+          variant="primary"
+          icon={<Ionicons name="analytics" size={20} color="#F9A826" />}
+          style={styles.actionButtonStyle}
+        />
         
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: currentTheme.colors.secondary }]}
+        <Button 
+          title="Refresh Analysis"
           onPress={() => {
             setLoading(true);
             fetchAiInsights();
           }}
-        >
-          <Ionicons name="refresh" size={20} color={currentTheme.colors.white} />
-          <Text style={[styles.actionButtonText, { color: currentTheme.colors.white }]}>Refresh Analysis</Text>
-        </TouchableOpacity>
+          variant="primary"
+          icon={<Ionicons name="refresh" size={20} color="#F9A826" />}
+          style={styles.actionButtonStyle}
+        />
       </View>
     </ScrollView>
   );
@@ -354,21 +355,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.medium,
     marginBottom: theme.spacing.large,
   },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.layout.borderRadiusMedium,
-    padding: theme.spacing.medium,
+  actionButtonStyle: {
     flex: 1,
     marginHorizontal: theme.spacing.tiny,
-  },
-  actionButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    fontWeight: 'bold',
-    color: theme.colors.white,
-    marginLeft: theme.spacing.small,
   },
 });
 
