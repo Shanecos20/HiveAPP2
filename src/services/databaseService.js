@@ -209,11 +209,22 @@ class DatabaseService {
           // Create the hive via POST with retries
           let retries = 2;
           let lastError = null;
+          let useForceFlag = false;
           
           console.log(`[updateHive] Creating new hive via API with ID: ${hiveData.id}`);
           while (retries >= 0) {
             try {
-              const response = await axios.post(`${API_BASE_URL}/hives`, hiveData, this.getConfig());
+              // On last attempt, try with force flag
+              const dataToSend = {
+                ...hiveData,
+                force: useForceFlag
+              };
+              
+              if (useForceFlag) {
+                console.log(`[updateHive] Attempting with force flag to replace any existing hive: ${hiveData.id}`);
+              }
+              
+              const response = await axios.post(`${API_BASE_URL}/hives`, dataToSend, this.getConfig());
               console.log(`[updateHive] Hive created successfully: ${hiveData.id}`);
               return response.data;
             } catch (postError) {
@@ -223,6 +234,14 @@ class DatabaseService {
               if (postError.response) {
                 console.error(`[updateHive] Server responded with error ${postError.response.status}:`, 
                   postError.response.data);
+                  
+                // If error indicates hive already exists, try with force flag on next retry
+                if (postError.response.status === 400 && 
+                    postError.response.data?.msg?.includes('already exists') && 
+                    retries > 0) {
+                  console.log(`[updateHive] Error indicates hive might already exist, will use force flag on next attempt`);
+                  useForceFlag = true;
+                }
               } else if (postError.request) {
                 console.error('[updateHive] No response received from server:', postError.request);
               } else {
@@ -401,6 +420,19 @@ class DatabaseService {
     } catch (error) {
       console.error('Error deleting hive:', error);
       return false;
+    }
+  }
+
+  // Debug method to reset all hives (development only)
+  async resetAllHives() {
+    try {
+      console.log('[resetAllHives] Attempting to reset all hives for current user');
+      const response = await axios.delete(`${API_BASE_URL}/hives/debug/reset`, this.getConfig());
+      console.log('[resetAllHives] Reset successful:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error resetting hives:', error);
+      return { error: error.message, success: false };
     }
   }
 
