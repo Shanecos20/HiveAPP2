@@ -65,7 +65,7 @@ const LoginScreen = ({ navigation }) => {
     >
       <View style={styles.logoContainer}>
         <Image 
-          source={require('../../assets/icon.png')} 
+          source={require('../../assets/HiveBoxLogo.png')} 
           style={styles.logo}
           resizeMode="contain"
         />

@@ -183,7 +183,7 @@ const HiveSensorsScreen = ({ route, navigation }) => {
                     styles.valueText, 
                     { color: currentTheme?.colors?.text || theme.colors.black }
                   ]}>
-                    {sensor.value}{sensor.unit}
+                    {sensor.value.toFixed(2)}{sensor.unit}
                   </Text>
                 </View>
               ) : (

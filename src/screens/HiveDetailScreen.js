@@ -137,7 +137,7 @@ const HiveDetailScreen = ({ route, navigation }) => {
   const chartConfig = {
     backgroundGradientFrom: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white,
     backgroundGradientTo: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white,
-    decimalPlaces: 1,
+    decimalPlaces: 2,
     color: (opacity = 1) => isDarkMode 
       ? `rgba(255, 255, 255, ${opacity})` 
       : `rgba(0, 0, 0, ${opacity})`,
@@ -275,7 +275,7 @@ const HiveDetailScreen = ({ route, navigation }) => {
               styles.currentValueText,
               { color: currentTheme?.colors?.text || theme.colors.black }
             ]}>
-              Current: {hive.sensors.temperature}°C
+              Current: {hive.sensors.temperature.toFixed(2)}°C
             </Text>
           </View>
           
@@ -316,7 +316,7 @@ const HiveDetailScreen = ({ route, navigation }) => {
               styles.currentValueText,
               { color: currentTheme?.colors?.text || theme.colors.black }
             ]}>
-              Current: {hive.sensors.humidity}%
+              Current: {hive.sensors.humidity.toFixed(2)}%
             </Text>
           </View>
           
@@ -357,7 +357,7 @@ const HiveDetailScreen = ({ route, navigation }) => {
               styles.currentValueText,
               { color: currentTheme?.colors?.text || theme.colors.black }
             ]}>
-              Current: {hive.sensors.varroa}
+              Current: {hive.sensors.varroa.toFixed(2)}
             </Text>
           </View>
           
@@ -398,7 +398,7 @@ const HiveDetailScreen = ({ route, navigation }) => {
               styles.currentValueText,
               { color: currentTheme?.colors?.text || theme.colors.black }
             ]}>
-              Current: {hive.sensors.weight} kg
+              Current: {hive.sensors.weight.toFixed(2)} kg
             </Text>
           </View>
           
@@ -433,7 +433,7 @@ const HiveDetailScreen = ({ route, navigation }) => {
           <View style={styles.sensorHeader}>
             <View style={styles.currentValue}>
               <Text style={[styles.currentValueText, { color: currentTheme?.colors?.text || theme.colors.black }]}>
-                Current: {hive.sensors.sound} dB
+                Current: {hive.sensors.sound.toFixed(2)} dB
               </Text>
             </View>
           </View>

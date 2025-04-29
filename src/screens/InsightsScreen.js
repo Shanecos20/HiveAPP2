@@ -143,22 +143,22 @@ const InsightsScreen = ({ navigation, route }) => {
         <View style={[styles.sensorSummary, { backgroundColor: currentTheme.colors.lightGrey }]}>
           <View style={styles.sensorItem}>
             <Ionicons name="thermometer" size={16} color={currentTheme.colors.error} />
-            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.temperature}°C</Text>
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.temperature.toFixed(2)}°C</Text>
           </View>
           
           <View style={styles.sensorItem}>
             <Ionicons name="water" size={16} color={currentTheme.colors.info} />
-            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.humidity}%</Text>
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.humidity.toFixed(2)}%</Text>
           </View>
           
           <View style={styles.sensorItem}>
             <Ionicons name="bug" size={16} color={currentTheme.colors.warning} />
-            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.varroa}</Text>
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.varroa.toFixed(2)}</Text>
           </View>
           
           <View style={styles.sensorItem}>
             <Ionicons name="scale" size={16} color={currentTheme.colors.success} />
-            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.weight} kg</Text>
+            <Text style={[styles.sensorValue, { color: currentTheme.colors.text }]}>{selectedHive.sensors.weight.toFixed(2)} kg</Text>
           </View>
         </View>
       </Card>

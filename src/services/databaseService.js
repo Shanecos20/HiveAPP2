@@ -184,9 +184,41 @@ class DatabaseService {
             throw new Error(`Hive ID ${hiveData.id} not found in the simulator database (Firebase). Please check the ID or QR code.`);
           }
           
-          // Create the hive via POST
-          const response = await axios.post(`${API_BASE_URL}/hives`, hiveData, this.getConfig());
-          return response.data;
+          // Check if this hive exists for the user first to avoid duplicate creation
+          try {
+            const existingHives = await this.getHives();
+            const duplicateHive = existingHives.find(h => h.id === hiveData.id);
+            
+            if (duplicateHive) {
+              console.warn(`Hive ID ${hiveData.id} already exists in user's collection.`);
+              return duplicateHive; // Just return the existing hive
+            }
+          } catch (checkError) {
+            console.warn(`Error checking for existing hive: ${checkError.message}`);
+            // Continue with creation attempt
+          }
+          
+          // Create the hive via POST with retries
+          let retries = 2;
+          let lastError = null;
+          
+          while (retries >= 0) {
+            try {
+              const response = await axios.post(`${API_BASE_URL}/hives`, hiveData, this.getConfig());
+              return response.data;
+            } catch (postError) {
+              lastError = postError;
+              if (retries > 0) {
+                console.log(`Retrying hive creation (${retries} attempts left)...`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
+              }
+              retries--;
+            }
+          }
+          
+          // If we get here, all retries failed
+          console.error('All hive creation attempts failed:', lastError);
+          throw lastError;
         } catch (error) {
           console.error('Error verifying hive on Firebase:', error);
           throw error;
@@ -210,7 +242,9 @@ class DatabaseService {
     }
     
     try {
-      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${hiveId}/sensors.json`);
+      // Add cache-busting parameter to avoid cached responses
+      const timestamp = Date.now();
+      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${hiveId}/sensors.json?_cb=${timestamp}`);
       
       if (response.data) {
         return {
@@ -222,11 +256,17 @@ class DatabaseService {
         return null; // Indicate hive not found or no sensor data
       }
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        console.log(`Firebase path not found for hive ID: ${hiveId}`);
-        return null;
+      if (error.response) {
+        if (error.response.status === 404) {
+          console.log(`Firebase path not found for hive ID: ${hiveId}`);
+          return null;
+        }
+        console.error(`Error fetching data for hive ${hiveId} from Firebase (${error.response.status}):`, error.message);
+      } else if (error.request) {
+        console.error(`Error fetching data for hive ${hiveId} from Firebase (no response):`, error.message);
+      } else {
+        console.error(`Error fetching data for hive ${hiveId} from Firebase:`, error.message);
       }
-      console.error(`Error fetching data for hive ${hiveId} from Firebase:`, error);
       throw error;
     }
   }

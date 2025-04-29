@@ -179,7 +179,7 @@ const DashboardScreen = ({ navigation }) => {
   const chartConfig = {
     backgroundGradientFrom: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white,
     backgroundGradientTo: isDarkMode ? currentTheme?.colors?.card || theme.dark.colors.card : theme.colors.white,
-    decimalPlaces: 1,
+    decimalPlaces: 2,
     color: (opacity = 1) => isDarkMode 
       ? `rgba(255, 255, 255, ${opacity})` 
       : `rgba(0, 0, 0, ${opacity})`,
@@ -342,7 +342,7 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={[
                 styles.sensorValue,
                 { color: currentTheme?.colors?.text || theme.colors.black }
-              ]}>{selectedHive.sensors.temperature}°C</Text>
+              ]}>{selectedHive.sensors.temperature.toFixed(2)}°C</Text>
               <Text style={[
                 styles.sensorLabel,
                 { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
@@ -361,7 +361,7 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={[
                 styles.sensorValue,
                 { color: currentTheme?.colors?.text || theme.colors.black }
-              ]}>{selectedHive.sensors.humidity}%</Text>
+              ]}>{selectedHive.sensors.humidity.toFixed(2)}%</Text>
               <Text style={[
                 styles.sensorLabel,
                 { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
@@ -380,7 +380,7 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={[
                 styles.sensorValue,
                 { color: currentTheme?.colors?.text || theme.colors.black }
-              ]}>{selectedHive.sensors.varroa}</Text>
+              ]}>{selectedHive.sensors.varroa.toFixed(2)}</Text>
               <Text style={[
                 styles.sensorLabel,
                 { color: currentTheme?.colors?.textSecondary || theme.colors.grey }
@@ -399,7 +399,7 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={[
                 styles.sensorValue,
                 { color: currentTheme?.colors?.text || theme.colors.black }
-              ]}>{selectedHive.sensors.weight} kg</Text>
+              ]}>{selectedHive.sensors.weight.toFixed(2)} kg</Text>
               <Text style={[
                 styles.sensorLabel,
                 { color: currentTheme?.colors?.textSecondary || theme.colors.grey }

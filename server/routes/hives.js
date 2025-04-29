@@ -68,7 +68,9 @@ router.post('/', auth, async (req, res) => {
     
     // Fetch sensor data from Firebase
     try {
-      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${id}/sensors.json`);
+      // Add cache-busting parameter to avoid cached responses
+      const timestamp = Date.now();
+      const response = await axios.get(`${FIREBASE_DATABASE_URL}/hives/${id}/sensors.json?_cb=${timestamp}`);
       const sensorData = response.data;
       
       if (!sensorData) {
@@ -94,11 +96,25 @@ router.post('/', auth, async (req, res) => {
       });
       
       await newHive.save();
+      console.log(`Hive ${id} successfully created for user ${req.user.id}`);
       res.json(newHive);
       
     } catch (error) {
       console.error('Error fetching from Firebase:', error.message);
-      return res.status(400).json({ msg: 'Error connecting to simulator database' });
+      
+      if (error.response) {
+        // Handle specific HTTP error responses
+        if (error.response.status === 404) {
+          return res.status(404).json({ msg: 'Hive ID not found in simulator database' });  
+        }
+        return res.status(400).json({ msg: `Error connecting to simulator database: ${error.response.status}` });
+      } else if (error.request) {
+        // Request was made but no response received
+        return res.status(500).json({ msg: 'Error connecting to simulator database: No response' });
+      } else {
+        // Something else happened
+        return res.status(500).json({ msg: `Error connecting to simulator database: ${error.message}` });
+      }
     }
   } catch (err) {
     console.error('Error creating hive:', err.message);
