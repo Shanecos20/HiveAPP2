@@ -60,10 +60,15 @@ router.post('/', auth, async (req, res) => {
   try {
     const { id, name, location, notes } = req.body;
     
-    // Check if hive already exists
-    let existingHive = await Hive.findOne({ id, userId: req.user.id });
+    // Check if hive already exists globally
+    let existingHive = await Hive.findOne({ id });
     if (existingHive) {
-      return res.status(400).json({ msg: 'Hive ID already exists for this user' });
+      // Check if it belongs to the current user (optional, for potentially different message)
+      if (existingHive.userId.toString() === req.user.id) {
+        return res.status(400).json({ msg: 'You have already registered this hive ID.' });
+      } else {
+        return res.status(400).json({ msg: 'This Hive ID is already registered by another user.' });
+      }
     }
     
     // Fetch sensor data from Firebase
@@ -252,36 +257,36 @@ function updateHiveHistory(hive, sensorData) {
   }
   
   if (sensorData.temperature !== undefined) {
-    if (!hive.history.temperature) hive.history.temperature = [];
-    hive.history.temperature.push(sensorData.temperature);
-    if (hive.history.temperature.length > 30) {
-      hive.history.temperature.shift();
-    }
-  }
-  
+        if (!hive.history.temperature) hive.history.temperature = [];
+        hive.history.temperature.push(sensorData.temperature);
+        if (hive.history.temperature.length > 30) {
+          hive.history.temperature.shift();
+        }
+      }
+      
   if (sensorData.humidity !== undefined) {
-    if (!hive.history.humidity) hive.history.humidity = [];
-    hive.history.humidity.push(sensorData.humidity);
-    if (hive.history.humidity.length > 30) {
-      hive.history.humidity.shift();
-    }
-  }
-  
+        if (!hive.history.humidity) hive.history.humidity = [];
+        hive.history.humidity.push(sensorData.humidity);
+        if (hive.history.humidity.length > 30) {
+          hive.history.humidity.shift();
+        }
+      }
+      
   if (sensorData.weight !== undefined) {
-    if (!hive.history.weight) hive.history.weight = [];
-    hive.history.weight.push(sensorData.weight);
-    if (hive.history.weight.length > 30) {
-      hive.history.weight.shift();
-    }
-  }
-  
+        if (!hive.history.weight) hive.history.weight = [];
+        hive.history.weight.push(sensorData.weight);
+        if (hive.history.weight.length > 30) {
+          hive.history.weight.shift();
+        }
+      }
+      
   if (sensorData.varroa !== undefined) {
-    if (!hive.history.varroa) hive.history.varroa = [];
-    hive.history.varroa.push(sensorData.varroa);
-    if (hive.history.varroa.length > 30) {
-      hive.history.varroa.shift();
-    }
-  }
+        if (!hive.history.varroa) hive.history.varroa = [];
+        hive.history.varroa.push(sensorData.varroa);
+        if (hive.history.varroa.length > 30) {
+          hive.history.varroa.shift();
+        }
+      }
 }
 
 // @route   DELETE /api/hives/:id
