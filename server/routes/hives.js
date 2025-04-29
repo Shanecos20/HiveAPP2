@@ -108,6 +108,9 @@ router.post('/', auth, async (req, res) => {
         history
       });
       
+      // Log the object before attempting to save
+      console.log('Attempting to save new hive object:', JSON.stringify(newHive, null, 2));
+
       try {
         await newHive.save();
         console.log(`Hive ${id} successfully created for user ${req.user.id}`);
@@ -153,8 +156,9 @@ router.post('/', auth, async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('Error creating hive:', err);
-    res.status(500).json({ msg: 'Server error' });
+    // Log the full error object for detailed debugging
+    console.error('Detailed error creating hive:', err);
+    res.status(500).json({ msg: 'Server error while creating hive. Check server logs.' });
   }
 });
 
