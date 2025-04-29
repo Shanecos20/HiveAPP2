@@ -108,12 +108,30 @@ router.post('/', auth, async (req, res) => {
         history
       });
       
-      await newHive.save();
-      console.log(`Hive ${id} successfully created for user ${req.user.id}`);
-      res.json(newHive);
+      try {
+        await newHive.save();
+        console.log(`Hive ${id} successfully created for user ${req.user.id}`);
+        res.json(newHive);
+      } catch (saveError) {
+        // Check for MongoDB duplicate key error (code 11000)
+        if (saveError.code === 11000) {
+          console.error(`Error saving hive: Duplicate key error for ID ${id}`);
+          // Determine if it's the same user or another user based on the existing document
+          // Note: This requires another query, might be simpler to just return the generic message
+          let conflictingHive = await Hive.findOne({ id });
+          if (conflictingHive && conflictingHive.userId.toString() === req.user.id) {
+             return res.status(400).json({ msg: 'You have already registered this hive ID.' });
+          } else {
+             return res.status(400).json({ msg: 'This Hive ID is already registered by another user.' });
+          }
+        } else {
+          // Re-throw other save errors to be caught by the outer catch block
+          throw saveError;
+        }
+      }
       
     } catch (error) {
-      console.error('Error fetching from Firebase:', error);
+      console.error('Error fetching from Firebase or processing:', error);
       
       // Print full error details for debugging
       if (error.response) {
