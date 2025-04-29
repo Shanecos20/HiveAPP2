@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const hiveSchema = new mongoose.Schema({
-  id: { type: String, required: true }, // External ID from Firebase/simulator - removing unique constraint
+  id: { type: String, required: true, unique: true }, // External ID from Firebase/simulator
   name: { type: String, required: true },
   location: { type: String, required: true },
   notes: { type: String },
@@ -23,9 +23,5 @@ const hiveSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now }
 });
-
-// Create a compound index on id and userId so the same hive ID can be used by different users
-// This allows multiple users to track the same hive without conflicts
-hiveSchema.index({ id: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Hive', hiveSchema); 
