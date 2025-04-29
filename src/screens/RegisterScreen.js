@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { register } from '../redux/authSlice';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { Button } from '../components/common';
 
 const RegisterScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -128,66 +129,43 @@ const RegisterScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>I am a:</Text>
           
           <View style={styles.userTypeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.userTypeButton,
-                userType === 'hobbyist' && styles.selectedUserType
-              ]}
+            <Button
+              title="Hobby Beekeeper"
               onPress={() => setUserType('hobbyist')}
-            >
-              <Ionicons 
-                name="person" 
-                size={24} 
-                color={userType === 'hobbyist' ? theme.colors.white : theme.colors.primary} 
-              />
-              <Text 
-                style={[
-                  styles.userTypeText,
-                  userType === 'hobbyist' && styles.selectedUserTypeText
-                ]}
-              >
-                Hobby Beekeeper
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
+              icon={<Ionicons name="person" size={24} color={userType === 'hobbyist' ? "#FFFFFF" : "#F9A826"} />}
               style={[
-                styles.userTypeButton,
-                userType === 'commercial' && styles.selectedUserType
+                styles.userTypeButtonStyle,
+                userType === 'hobbyist' && styles.selectedPrimaryType
               ]}
+              textStyle={userType === 'hobbyist' ? styles.selectedButtonText : {}}
+            />
+            
+            <Button
+              title="Commercial"
               onPress={() => setUserType('commercial')}
-            >
-              <Ionicons 
-                name="business" 
-                size={24} 
-                color={userType === 'commercial' ? theme.colors.white : theme.colors.primary} 
-              />
-              <Text 
-                style={[
-                  styles.userTypeText,
-                  userType === 'commercial' && styles.selectedUserTypeText
-                ]}
-              >
-                Commercial
-              </Text>
-            </TouchableOpacity>
+              variant="secondary"
+              icon={<Ionicons name="business" size={24} color={userType === 'commercial' ? "#FFFFFF" : "#4CAF50"} />}
+              style={[
+                styles.userTypeButtonStyle,
+                { backgroundColor: 'rgba(220, 242, 220, 0.95)' },
+                userType === 'commercial' && styles.selectedSecondaryType
+              ]}
+              textStyle={userType === 'commercial' ? styles.selectedButtonText : {}}
+            />
           </View>
           
           {error && (
             <Text style={styles.errorText}>{error}</Text>
           )}
           
-          <TouchableOpacity 
-            style={styles.registerButton}
+          <Button
+            title="Create Account"
             onPress={handleRegister}
+            loading={isLoading}
             disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={theme.colors.white} />
-            ) : (
-              <Text style={styles.registerButtonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
+            style={styles.buttonMargin}
+            variant="secondary"
+          />
           
           <TouchableOpacity 
             style={styles.loginLink}
@@ -262,45 +240,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: theme.spacing.large,
   },
-  userTypeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.medium,
-    borderRadius: theme.layout.borderRadiusMedium,
+  userTypeButtonStyle: {
     width: '48%',
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
   },
-  selectedUserType: {
-    backgroundColor: theme.colors.primary,
+  selectedPrimaryType: {
+    backgroundColor: '#F9A826',
+    borderColor: '#E08600',
   },
-  userTypeText: {
-    fontSize: theme.typography.bodyMedium,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
-    marginLeft: theme.spacing.small,
+  selectedSecondaryType: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#388E3C',
   },
-  selectedUserTypeText: {
-    color: theme.colors.white,
+  selectedButtonText: {
+    color: '#FFFFFF',
   },
   errorText: {
     color: theme.colors.error,
     marginBottom: theme.spacing.medium,
     fontSize: theme.typography.bodySmall,
   },
-  registerButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.layout.borderRadiusMedium,
-    padding: theme.spacing.medium,
-    alignItems: 'center',
-    marginTop: theme.spacing.medium,
-    marginBottom: theme.spacing.medium,
-  },
-  registerButtonText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.bodyLarge,
-    fontWeight: 'bold',
+  buttonMargin: {
+    marginVertical: theme.spacing.medium,
   },
   loginLink: {
     alignItems: 'center',
@@ -312,7 +272,7 @@ const styles = StyleSheet.create({
   },
   loginLinkTextBold: {
     fontWeight: 'bold',
-    color: theme.colors.primary,
+    color: '#4CAF50',
   },
 });
 

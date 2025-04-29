@@ -4,14 +4,13 @@ import { useSelector, useDispatch } from 'react-redux';
 import { selectHive, updateHiveSensor, saveHive, fetchHives, syncAllHivesData } from '../redux/hiveSlice';
 import { formatDateTime, getStatusColor, simulateSensorChange } from '../utils/helpers';
 import theme from '../utils/theme';
-import Card from '../components/common/Card';
-import StatusBadge from '../components/common/StatusBadge';
-import SyncButton from '../components/common/SyncButton';
+import { Card, StatusBadge, SyncButton, ScreenContainer } from '../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import LineChartWrapper from '../components/common/LineChartWrapper';
 import { Dimensions } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { Button } from '../components/common';
 
 const DashboardScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -65,90 +64,74 @@ const DashboardScreen = ({ navigation }) => {
   // Render loading state
   if (loading && hives.length === 0) {
     return (
-      <View style={[
-        styles.container, 
-        styles.centerContent,
-        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
-      ]}>
-        <ActivityIndicator size="large" color={currentTheme?.colors?.primary || theme.colors.primary} />
-        <Text style={[
-          styles.loadingText,
-          { color: currentTheme?.colors?.text || theme.colors.text }
-        ]}>
-          Loading hives...
-        </Text>
-      </View>
+      <ScreenContainer scrollable={false}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color={currentTheme?.colors?.primary || theme.colors.primary} />
+          <Text style={[
+            styles.loadingText,
+            { color: currentTheme?.colors?.text || theme.colors.text }
+          ]}>
+            Loading hives...
+          </Text>
+        </View>
+      </ScreenContainer>
     );
   }
   
   // Render error state
   if (error && hives.length === 0) {
     return (
-      <View style={[
-        styles.container, 
-        styles.centerContent,
-        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
-      ]}>
-        <Ionicons 
-          name="alert-circle" 
-          size={48} 
-          color={currentTheme?.colors?.error || theme.colors.error} 
-        />
-        <Text style={[
-          styles.errorText,
-          { color: currentTheme?.colors?.error || theme.colors.error }
-        ]}>
-          {error}
-        </Text>
-        <TouchableOpacity 
-          style={[
-            styles.retryButton,
-            { backgroundColor: currentTheme?.colors?.primary || theme.colors.primary }
-          ]}
-          onPress={() => navigation.navigate('AddHive')}
-        >
-          <Text style={styles.retryButtonText}>Add Your First Hive</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenContainer scrollable={false}>
+        <View style={styles.centerContent}>
+          <Ionicons 
+            name="alert-circle" 
+            size={48} 
+            color={currentTheme?.colors?.error || theme.colors.error} 
+          />
+          <Text style={[
+            styles.errorText,
+            { color: currentTheme?.colors?.error || theme.colors.error }
+          ]}>
+            {error}
+          </Text>
+          <Button 
+            title="Add Your First Hive"
+            onPress={() => navigation.navigate('AddHive')}
+          />
+        </View>
+      </ScreenContainer>
     );
   }
   
   // Render empty state
   if (hives.length === 0) {
     return (
-      <View style={[
-        styles.container, 
-        styles.centerContent,
-        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
-      ]}>
-        <Ionicons 
-          name="cube-outline" 
-          size={64} 
-          color={currentTheme?.colors?.textSecondary || theme.colors.grey} 
-        />
-        <Text style={[
-          styles.emptyTitle,
-          { color: currentTheme?.colors?.text || theme.colors.text }
-        ]}>
-          No Hives Yet
-        </Text>
-        <Text style={[
-          styles.emptyDescription,
-          { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
-        ]}>
-          Add your first hive to get started with monitoring
-        </Text>
-        <TouchableOpacity 
-          style={[
-            styles.addButton,
-            { backgroundColor: currentTheme?.colors?.primary || theme.colors.primary }
-          ]}
-          onPress={() => navigation.navigate('AddHive')}
-        >
-          <Ionicons name="add" size={20} color={theme.colors.white} />
-          <Text style={styles.addButtonText}>Add Your First Hive</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenContainer scrollable={false}>
+        <View style={styles.centerContent}>
+          <Ionicons 
+            name="cube-outline" 
+            size={64} 
+            color={currentTheme?.colors?.textSecondary || theme.colors.grey} 
+          />
+          <Text style={[
+            styles.emptyTitle,
+            { color: currentTheme?.colors?.text || theme.colors.text }
+          ]}>
+            No Hives Yet
+          </Text>
+          <Text style={[
+            styles.emptyDescription,
+            { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
+          ]}>
+            Add your first hive to get started with monitoring
+          </Text>
+          <Button 
+            title="Add Your First Hive"
+            onPress={() => navigation.navigate('AddHive')}
+            icon={<Ionicons name="add" size={20} color="#F9A826" />}
+          />
+        </View>
+      </ScreenContainer>
     );
   }
   
@@ -197,11 +180,9 @@ const DashboardScreen = ({ navigation }) => {
   };
   
   return (
-    <ScrollView 
-      style={[
-        styles.container, 
-        { backgroundColor: currentTheme?.colors?.background || theme.colors.background }
-      ]}
+    <ScreenContainer 
+      topInset={false}
+      style={styles.dashboardContainer}
     >
       <View style={styles.header}>
         <Text style={[
@@ -282,23 +263,13 @@ const DashboardScreen = ({ navigation }) => {
         ))}
         
         {/* Make Add Hive button available for all users */}
-        <TouchableOpacity
-          style={[
-            styles.addHiveButton,
-            {
-              backgroundColor: isDarkMode 
-                ? currentTheme?.colors?.card || theme.colors.darkGrey 
-                : theme.colors.white,
-            }
-          ]}
+        <Button
+          title="Add Hive"
           onPress={() => navigation.navigate('AddHive')}
-        >
-          <Ionicons name="add" size={20} color={currentTheme?.colors?.primary || theme.colors.primary} />
-          <Text style={[
-            styles.addHiveText,
-            { color: currentTheme?.colors?.primary || theme.colors.primary }
-          ]}>Add Hive</Text>
-        </TouchableOpacity>
+          icon={<Ionicons name="add" size={20} color="#F9A826" />}
+          style={styles.addHiveButtonStyle}
+          size="small"
+        />
       </ScrollView>
       
       {/* Selected Hive Overview */}
@@ -408,56 +379,29 @@ const DashboardScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.actionsRow}>
-            <TouchableOpacity 
-              style={styles.actionButton}
+            <Button
+              title="Details"
               onPress={handleHiveDetails}
-            >
-              <Ionicons 
-                name="stats-chart" 
-                size={20} 
-                color={currentTheme?.colors?.primary || theme.colors.primary} 
-              />
-              <Text style={[
-                styles.actionButtonText,
-                { color: currentTheme?.colors?.primary || theme.colors.primary }
-              ]}>
-                Details
-              </Text>
-            </TouchableOpacity>
+              variant="secondary"
+              icon={<Ionicons name="stats-chart" size={20} color="#3B8132" />}
+              size="small"
+            />
             
-            <TouchableOpacity 
-              style={styles.actionButton}
+            <Button
+              title="Edit"
               onPress={() => navigation.navigate('EditHive', { hiveId: selectedHive.id })}
-            >
-              <Ionicons 
-                name="create" 
-                size={20} 
-                color={currentTheme?.colors?.primary || theme.colors.primary} 
-              />
-              <Text style={[
-                styles.actionButtonText,
-                { color: currentTheme?.colors?.primary || theme.colors.primary }
-              ]}>
-                Edit
-              </Text>
-            </TouchableOpacity>
+              variant="secondary"
+              icon={<Ionicons name="create" size={20} color="#3B8132" />}
+              size="small"
+            />
             
-            <TouchableOpacity 
-              style={styles.actionButton}
+            <Button
+              title="Insights"
               onPress={() => navigation.navigate('Insights', { hiveId: selectedHive.id })}
-            >
-              <Ionicons 
-                name="bulb" 
-                size={20} 
-                color={currentTheme?.colors?.primary || theme.colors.primary} 
-              />
-              <Text style={[
-                styles.actionButtonText,
-                { color: currentTheme?.colors?.primary || theme.colors.primary }
-              ]}>
-                Insights
-              </Text>
-            </TouchableOpacity>
+              variant="secondary"
+              icon={<Ionicons name="bulb" size={20} color="#3B8132" />}
+              size="small"
+            />
           </View>
         </Card>
       )}
@@ -531,19 +475,19 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </>
       )}
-    </ScrollView>
+    </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
+  dashboardContainer: {
+    paddingTop: 0,
   },
   centerContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.medium,
+    padding: theme.spacing.large,
   },
   loadingText: {
     fontSize: theme.typography.bodyLarge,
@@ -644,21 +588,9 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: 'bold',
   },
-  addHiveButton: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.layout.borderRadiusMedium,
-    paddingHorizontal: theme.spacing.medium,
-    paddingVertical: theme.spacing.medium / 2,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    borderStyle: 'dashed',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addHiveText: {
-    fontSize: theme.typography.bodyMedium,
-    color: theme.colors.primary,
-    marginLeft: theme.spacing.tiny,
+  addHiveButtonStyle: {
+    height: 36,
+    marginRight: theme.spacing.medium,
   },
   hiveInfo: {
     marginVertical: theme.spacing.medium,

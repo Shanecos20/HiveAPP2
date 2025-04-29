@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../redux/authSlice';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { Button } from '../components/common';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -73,6 +74,14 @@ const LoginScreen = ({ navigation }) => {
         <Text style={styles.tagline}>Smart Beekeeping Management</Text>
       </View>
       
+      <Button
+        variant="secondary"
+        title="Trusted by Beekeepers"
+        style={styles.trustedBanner}
+        textStyle={styles.trustedBannerText}
+        disabled={true}
+      />
+      
       <View style={styles.formContainer}>
         <View style={styles.inputContainer}>
           <Ionicons name="mail" size={20} color={theme.colors.grey} style={styles.inputIcon} />
@@ -111,25 +120,20 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.errorText}>{error}</Text>
         )}
         
-        <TouchableOpacity 
-          style={styles.loginButton}
+        <Button
+          title="Login"
           onPress={handleLogin}
+          loading={isLoading}
           disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={theme.colors.white} />
-          ) : (
-            <Text style={styles.loginButtonText}>Login</Text>
-          )}
-        </TouchableOpacity>
+          style={styles.buttonMargin}
+        />
         
-        <TouchableOpacity 
-          style={styles.registerButton}
+        <Button
+          title="Create Account"
           onPress={handleRegister}
           disabled={isLoading}
-        >
-          <Text style={styles.registerButtonText}>Create Account</Text>
-        </TouchableOpacity>
+          style={styles.buttonMargin}
+        />
         
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
@@ -138,27 +142,22 @@ const LoginScreen = ({ navigation }) => {
         </View>
         
         <View style={styles.demoContainer}>
-          <TouchableOpacity 
-            style={[styles.demoButton, { backgroundColor: theme.colors.primaryLight }]}
+          <Button
+            title="Hobby Beekeeper"
             onPress={() => handleDemoLogin('hobbyist')}
             disabled={isLoading}
-          >
-            <Ionicons name="person" size={20} color={theme.colors.primary} />
-            <Text style={[styles.demoButtonText, { color: theme.colors.primary }]}>
-              Hobby Beekeeper
-            </Text>
-          </TouchableOpacity>
+            icon={<Ionicons name="person" size={20} color="#F9A826" />}
+            style={styles.demoButtonStyle}
+          />
           
-          <TouchableOpacity 
-            style={[styles.demoButton, { backgroundColor: theme.colors.secondaryLight }]}
+          <Button
+            title="Commercial"
             onPress={() => handleDemoLogin('commercial')}
             disabled={isLoading}
-          >
-            <Ionicons name="business" size={20} color={theme.colors.secondary} />
-            <Text style={[styles.demoButtonText, { color: theme.colors.secondary }]}>
-              Commercial
-            </Text>
-          </TouchableOpacity>
+            variant="secondary"
+            icon={<Ionicons name="business" size={20} color="#4CAF50" />}
+            style={styles.demoButtonStyle}
+          />
         </View>
       </View>
       
@@ -223,31 +222,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.medium,
     fontSize: theme.typography.bodySmall,
   },
-  loginButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.layout.borderRadiusMedium,
-    padding: theme.spacing.medium,
-    alignItems: 'center',
+  buttonMargin: {
     marginBottom: theme.spacing.medium,
   },
-  loginButtonText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.bodyLarge,
-    fontWeight: 'bold',
-  },
-  registerButton: {
-    backgroundColor: 'transparent',
-    borderRadius: theme.layout.borderRadiusMedium,
-    padding: theme.spacing.medium,
-    alignItems: 'center',
-    marginBottom: theme.spacing.medium,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-  },
-  registerButtonText: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.bodyLarge,
-    fontWeight: 'bold',
+  demoButtonStyle: {
+    width: '48%',
   },
   divider: {
     flexDirection: 'row',
@@ -268,19 +247,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  demoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.medium,
-    borderRadius: theme.layout.borderRadiusMedium,
-    width: '48%',
-  },
-  demoButtonText: {
-    fontSize: theme.typography.bodyMedium,
-    fontWeight: 'bold',
-    marginLeft: theme.spacing.small,
-  },
   footer: {
     marginTop: 'auto',
     alignItems: 'center',
@@ -289,6 +255,19 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: theme.typography.bodySmall,
     color: theme.colors.grey,
+  },
+  trustedBanner: {
+    marginBottom: theme.spacing.medium,
+    paddingVertical: theme.spacing.small,
+    backgroundColor: 'rgba(220, 242, 220, 0.95)',
+    justifyContent: 'center',
+    borderWidth: 0,
+    borderRadius: 24,
+  },
+  trustedBannerText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+    fontSize: theme.typography.bodyMedium,
   },
 });
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import theme from '../../utils/theme';
 
 /**
@@ -10,6 +11,7 @@ import theme from '../../utils/theme';
  */
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { theme: currentTheme, isDarkMode } = useTheme();
+  const insets = useSafeAreaInsets();
   
   // Fallback to default theme if currentTheme is undefined
   const safeColors = currentTheme?.colors || theme.colors;
@@ -20,7 +22,9 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       { 
         backgroundColor: safeColors.card,
         borderTopColor: safeColors.border,
-        borderTopWidth: 1 
+        borderTopWidth: 1,
+        paddingBottom: Math.max(insets.bottom, 5), // Reduced padding to position nav lower
+        marginBottom: 0 // Remove upward margin to keep nav bar lower
       }
     ]}>
       {state.routes.map((route, index) => {
@@ -86,14 +90,15 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    height: 60,
-    paddingBottom: 5, // Add some padding at the bottom for iPhone home indicator
+    height: 70, // Increased height for better touch targets
+    paddingBottom: 5,
   },
   tabButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: 10, // Increased padding for better touch targets
+    paddingBottom: 5,
   },
   label: {
     fontSize: 12,

@@ -8,7 +8,7 @@ import { Provider, useDispatch } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/redux/store';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, initialWindowMetrics } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { useSelector } from 'react-redux';
 
@@ -141,10 +141,19 @@ const NotificationWrapper = ({ children }) => {
   const { theme: currentTheme, isDarkMode } = useTheme();
   
   return (
-    <View style={{ flex: 1, backgroundColor: currentTheme?.colors?.background || theme.colors.background }}>
-      {children}
-      {showNotificationPopup && <NotificationPopup notification={latestNotification} />}
-    </View>
+    <SafeAreaView 
+      style={{ 
+        flex: 1, 
+        backgroundColor: currentTheme?.colors?.background || theme.colors.background,
+        marginTop: 50, // Negative margin to push content up
+      }}
+      edges={['right', 'left']} // Remove 'top' to prevent safe area insets at top
+    >
+      <View style={{ flex: 1 }}>
+        {children}
+        {showNotificationPopup && <NotificationPopup notification={latestNotification} />}
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -236,11 +245,25 @@ const AppNavigator = () => {
 
 // Root component with Redux provider
 export default function App() {
+  // Custom insets with extra padding for Dynamic Island and bottom navigation
+  const customSafeAreaInsets = {
+    top: 0, // Remove all top spacing
+    bottom: 0, // We'll handle bottom in the CustomTabBar
+    left: 0,
+    right: 0,
+  };
+
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <ThemeProvider>
-          <SafeAreaProvider>
+          <SafeAreaProvider initialMetrics={{
+            ...initialWindowMetrics,
+            insets: {
+              ...initialWindowMetrics?.insets,
+              ...customSafeAreaInsets
+            }
+          }}>
             <ThemedStatusBar />
             <AppInitializer>
               <NotificationWrapper>
