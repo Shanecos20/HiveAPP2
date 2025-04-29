@@ -184,8 +184,6 @@ class DatabaseService {
             throw new Error(`Hive ID ${hiveData.id} not found in the simulator database (Firebase). Please check the ID or QR code.`);
           }
           
-          console.log(`Firebase data found for hive ${hiveData.id}:`, firebaseData);
-          
           // Check if this hive exists for the user first to avoid duplicate creation
           try {
             const existingHives = await this.getHives();
@@ -200,62 +198,40 @@ class DatabaseService {
             // Continue with creation attempt
           }
           
-          // Make sure hiveData has all required fields for creating a new hive
-          const completeHiveData = {
-            id: hiveData.id,
-            name: hiveData.name || `Hive ${hiveData.id}`,
-            location: hiveData.location || 'Unknown location',
-            notes: hiveData.notes || '',
-            // Optionally include sensors directly from Firebase
-            sensors: firebaseData.sensors
-          };
-          
-          // Create the hive via POST with retries
-          let retries = 3; // Increased from 2 to 3
+          // Create the hive via POST with retries and increasing timeout
+          let retries = 3; // Increase to 3 retries
           let lastError = null;
           
           while (retries >= 0) {
             try {
-              console.log(`Attempting to create hive in backend (attempt ${4-retries}/4):`, completeHiveData);
-              const response = await axios.post(`${API_BASE_URL}/hives`, completeHiveData, this.getConfig());
-              console.log(`Hive created successfully:`, response.data);
+              // Include the sensor data from Firebase in the create request
+              const hiveDataWithSensors = {
+                ...hiveData, 
+                sensors: firebaseData.sensors
+              };
+              
+              console.log(`Attempting to create hive ${hiveData.id} (attempt ${3-retries+1}/4)`);
+              const response = await axios.post(
+                `${API_BASE_URL}/hives`, 
+                hiveDataWithSensors, 
+                this.getConfig()
+              );
               return response.data;
             } catch (postError) {
               lastError = postError;
-              const statusCode = postError.response?.status;
-              
-              // If we get a 400 error with a duplicate message, the hive might already exist
-              if (statusCode === 400 && postError.response?.data?.msg?.includes('already exists')) {
-                console.log('Hive already exists, trying to fetch it instead');
-                try {
-                  // Try to get the existing hive
-                  const hives = await this.getHives();
-                  const existingHive = hives.find(h => h.id === hiveData.id);
-                  if (existingHive) {
-                    return existingHive;
-                  }
-                } catch (fetchError) {
-                  console.error('Failed to fetch existing hive:', fetchError);
-                }
-              }
-              
-              // No need to retry for client errors except 500 server errors
-              if (statusCode && statusCode !== 500 && statusCode < 500) {
-                console.error(`Client error (${statusCode}), not retrying:`, postError.response?.data);
-                break;
-              }
+              console.error(`Hive creation attempt failed:`, postError);
               
               if (retries > 0) {
-                console.log(`Retrying hive creation (${retries} attempts left)...`);
-                // Increase wait time between retries
-                await new Promise(resolve => setTimeout(resolve, 2000 * (4-retries))); // Progressive backoff
+                const timeout = 1000 * (4 - retries); // Progressive backoff: 1s, 2s, 3s
+                console.log(`Retrying hive creation (${retries} attempts left) in ${timeout/1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, timeout));
               }
               retries--;
             }
           }
           
           // If we get here, all retries failed
-          console.error('All hive creation attempts failed:', lastError?.response?.data || lastError);
+          console.error('All hive creation attempts failed:', lastError);
           throw lastError;
         } catch (error) {
           console.error('Error verifying hive on Firebase:', error);
@@ -288,7 +264,7 @@ class DatabaseService {
       const response = await axios.get(url);
       
       if (response.data) {
-        console.log(`Firebase data received for hive ${hiveId}:`, response.data);
+        console.log(`Firebase data for hive ${hiveId}:`, response.data);
         return {
           id: hiveId,
           sensors: response.data
@@ -337,6 +313,7 @@ class DatabaseService {
       
       // Update the hive with the latest sensor data in our backend
       try {
+        console.log(`Updating hive ${hiveId} with latest sensor data`);
         const updatedHive = await axios.put(
           `${API_BASE_URL}/hives/${hiveId}/sensors`, 
           { sensors: firebaseData.sensors }, 
