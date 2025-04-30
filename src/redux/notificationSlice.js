@@ -1,4 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Storage key for thresholds
+const THRESHOLDS_STORAGE_KEY = '@hiveapp:thresholds';
 
 const initialState = {
   notifications: [],
@@ -18,6 +22,41 @@ const initialState = {
   showNotificationPopup: false,
   latestNotification: null,
   lastEventTimestamp: 0, // Track the timestamp of the last processed event
+};
+
+// Function to save thresholds to AsyncStorage
+const saveThresholds = async (thresholds) => {
+  try {
+    await AsyncStorage.setItem(THRESHOLDS_STORAGE_KEY, JSON.stringify(thresholds));
+  } catch (error) {
+    console.error('Error saving thresholds to AsyncStorage:', error);
+  }
+};
+
+// Function to load thresholds from AsyncStorage
+export const loadSavedThresholds = () => async (dispatch) => {
+  try {
+    const savedThresholds = await AsyncStorage.getItem(THRESHOLDS_STORAGE_KEY);
+    if (savedThresholds) {
+      const thresholds = JSON.parse(savedThresholds);
+      Object.keys(thresholds).forEach(sensorType => {
+        if (thresholds[sensorType].min !== undefined) {
+          dispatch(updateThresholds({
+            sensorType,
+            min: thresholds[sensorType].min,
+          }));
+        }
+        if (thresholds[sensorType].max !== undefined) {
+          dispatch(updateThresholds({
+            sensorType,
+            max: thresholds[sensorType].max,
+          }));
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error loading thresholds from AsyncStorage:', error);
+  }
 };
 
 const notificationSlice = createSlice({
@@ -83,6 +122,9 @@ const notificationSlice = createSlice({
       if (state.thresholds[sensorType]) {
         if (min !== undefined) state.thresholds[sensorType].min = min;
         if (max !== undefined) state.thresholds[sensorType].max = max;
+        
+        // Save updated thresholds to AsyncStorage
+        saveThresholds(state.thresholds);
       }
     },
     
@@ -169,7 +211,10 @@ const notificationSlice = createSlice({
         eventTimestamp: timestamp // Store the original event timestamp for reference
       };
       
+      // Always add to notification list
       state.notifications.unshift(notification);
+      
+      // Show notification popup
       state.showNotificationPopup = true;
       state.latestNotification = notification;
       
@@ -238,7 +283,10 @@ const notificationSlice = createSlice({
         read: false,
       };
       
+      // Always add to notification list
       state.notifications.unshift(notification);
+      
+      // Show notification popup
       state.showNotificationPopup = true;
       state.latestNotification = notification;
     },

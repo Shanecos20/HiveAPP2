@@ -193,15 +193,6 @@ const NotificationsScreen = ({ navigation }) => {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={renderEmptyList}
       />
-      
-      <Card title="Test Notifications" style={styles.testCard}>
-        <Text style={[
-          styles.testCardText,
-          { color: currentTheme?.colors?.textSecondary || theme.colors.darkGrey }
-        ]}>
-          Use the Settings screen to trigger test notifications for different events.
-        </Text>
-      </Card>
     </View>
   );
 };
@@ -321,13 +312,6 @@ const styles = StyleSheet.create({
     color: theme.colors.grey,
     textAlign: 'center',
     marginTop: theme.spacing.small,
-  },
-  testCard: {
-    marginTop: 'auto',
-  },
-  testCardText: {
-    fontSize: theme.typography.bodyMedium,
-    color: theme.colors.darkGrey,
   },
 });
 

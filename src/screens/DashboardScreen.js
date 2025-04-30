@@ -15,7 +15,7 @@ import { Button } from '../components/common';
 const DashboardScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { hives, selectedHiveId, loading, error, lastSynced } = useSelector(state => state.hives);
-  const { userType } = useSelector(state => state.auth);
+  const { userType, appSettings } = useSelector(state => state.auth);
   const { theme: currentTheme, isDarkMode } = useTheme();
   
   // Track syncing state for UI feedback
@@ -24,8 +24,11 @@ const DashboardScreen = ({ navigation }) => {
   // Find the selected hive
   const selectedHive = hives.find(h => h.id === selectedHiveId) || hives[0];
   
-  // Fetch data from Firebase every 30 seconds
+  // Fetch data from Firebase every 30 seconds if dataSync is enabled
   useEffect(() => {
+    // Don't set up interval if dataSync is disabled
+    if (!appSettings.dataSync) return;
+    
     const interval = setInterval(() => {
       if (hives && hives.length > 0) {
         syncDataFromFirebase();
@@ -33,7 +36,7 @@ const DashboardScreen = ({ navigation }) => {
     }, 30000); // 30 seconds
     
     return () => clearInterval(interval);
-  }, [hives, dispatch]);
+  }, [hives, dispatch, appSettings.dataSync]);
   
   // Function to manually sync data from Firebase
   const syncDataFromFirebase = async () => {
@@ -220,6 +223,16 @@ const DashboardScreen = ({ navigation }) => {
         }]}>
           Last synced: {formatDateTime(lastSynced)}
         </Text>
+      )}
+      
+      {/* Data sync disabled indicator */}
+      {!appSettings.dataSync && (
+        <View style={[styles.syncDisabledContainer, { backgroundColor: currentTheme?.colors?.warning || '#FFB74D' }]}>
+          <Ionicons name="information-circle" size={20} color="#FFF" />
+          <Text style={styles.syncDisabledText}>
+            Automatic sync is disabled. Tap the sync button to update manually.
+          </Text>
+        </View>
       )}
       
       {/* Hive Selector */}
@@ -679,6 +692,18 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.bodyTiny,
     marginBottom: theme.spacing.small,
     marginTop: -theme.spacing.small,
+  },
+  syncDisabledContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.medium,
+    borderRadius: theme.layout.borderRadiusMedium,
+    marginBottom: theme.spacing.medium,
+  },
+  syncDisabledText: {
+    fontSize: theme.typography.bodySmall,
+    color: theme.colors.white,
+    marginLeft: theme.spacing.small,
   },
 });
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { hideNotificationPopup } from '../../redux/notificationSlice';
 import { getSeverityColor, formatDateTime } from '../../utils/helpers';
 import theme from '../../utils/theme';
@@ -35,6 +35,15 @@ const fallbackTheme = {
 const NotificationPopup = ({ notification }) => {
   const dispatch = useDispatch();
   const { theme: currentTheme, isDarkMode } = useTheme();
+  // Get push notifications settings
+  const { appSettings } = useSelector(state => state.auth);
+  
+  // If push notifications are disabled, don't show the popup
+  if (!appSettings.pushNotifications) {
+    // Hide notification popup without animation
+    setTimeout(() => dispatch(hideNotificationPopup()), 0);
+    return null;
+  }
   
   // Ensure currentTheme and its properties are defined with fallbacks
   const safeTheme = {

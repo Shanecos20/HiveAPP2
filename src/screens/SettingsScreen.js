@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, TextInput, Alert } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateThresholds, triggerTestNotification } from '../redux/notificationSlice';
+import { updateThresholds, triggerTestNotification, loadSavedThresholds } from '../redux/notificationSlice';
 import { simulateHiveEvent } from '../redux/hiveSlice';
-import { logout, logoutUser, updateAppSettings } from '../redux/authSlice';
-import { updateNotificationThresholds } from '../redux/notificationSlice';
+import { logout, logoutUser, updateAppSettings, loadSavedAppSettings } from '../redux/authSlice';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/common/Card';
@@ -32,6 +31,21 @@ const SettingsScreen = () => {
   const [testHiveId, setTestHiveId] = useState(selectedHiveId);
   const selectedHive = hives.find(h => h.id === testHiveId);
   
+  // Load saved thresholds and app settings on mount
+  useEffect(() => {
+    dispatch(loadSavedThresholds());
+    dispatch(loadSavedAppSettings());
+  }, [dispatch]);
+
+  // Update local state when thresholds change in Redux
+  useEffect(() => {
+    setTempMin(thresholds.temperature.min.toString());
+    setTempMax(thresholds.temperature.max.toString());
+    setHumidityMin(thresholds.humidity.min.toString());
+    setHumidityMax(thresholds.humidity.max.toString());
+    setVarroaMax(thresholds.varroa.max.toString());
+  }, [thresholds]);
+  
   const handleUpdateThresholds = () => {
     // Update temperature thresholds
     dispatch(updateThresholds({
@@ -52,6 +66,9 @@ const SettingsScreen = () => {
       sensorType: 'varroa',
       max: parseFloat(varroaMax),
     }));
+
+    // Show success alert
+    Alert.alert("Success", "Notification thresholds updated successfully");
   };
   
   const handleTestNotification = (type) => {
@@ -86,10 +103,36 @@ const SettingsScreen = () => {
   // Function to handle toggling app settings
   const handleToggleSetting = (setting, value) => {
     dispatch(updateAppSettings({ [setting]: value }));
+    
+    // Show appropriate feedback based on the setting and its new value
+    switch(setting) {
+      case 'darkMode':
+        // Dark mode already gives visual feedback by changing theme
+        break;
+      case 'pushNotifications':
+        Alert.alert(
+          value ? "Notifications Enabled" : "Notifications Disabled", 
+          value ? "You will now receive alerts when hive sensors exceed thresholds." 
+                : "You will no longer receive alerts for hive sensor readings."
+        );
+        break;
+      case 'dataSync':
+        Alert.alert(
+          value ? "Auto Sync Enabled" : "Auto Sync Disabled",
+          value ? "Hive data will automatically sync every 30 seconds." 
+                : "Hive data will only update when you manually refresh."
+        );
+        break;
+      default:
+        Alert.alert("Setting Updated", `${setting} setting has been ${value ? 'enabled' : 'disabled'}.`);
+    }
   };
   
   return (
-    <ScrollView style={[styles.container, { backgroundColor: currentTheme.colors.background }]}>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: currentTheme.colors.background }]}
+      contentContainerStyle={{ paddingBottom: 20 }}
+    >
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -485,7 +528,7 @@ const styles = StyleSheet.create({
   versionContainer: {
     alignItems: 'center',
     marginTop: theme.spacing.large,
-    marginBottom: theme.spacing.medium,
+    marginBottom: 100,
   },
   versionText: {
     fontSize: theme.typography.bodySmall,

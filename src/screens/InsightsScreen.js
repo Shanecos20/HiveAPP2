@@ -75,7 +75,10 @@ const InsightsScreen = ({ navigation, route }) => {
   }
   
   return (
-    <ScrollView style={[styles.container, { backgroundColor: currentTheme.colors.background }]}>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: currentTheme.colors.background }]}
+      contentContainerStyle={{ paddingBottom: 20 }}
+    >
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -353,7 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: theme.spacing.medium,
-    marginBottom: theme.spacing.large,
+    marginBottom: 100,
   },
   actionButtonStyle: {
     flex: 1,

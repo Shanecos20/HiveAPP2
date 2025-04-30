@@ -6,6 +6,9 @@ import { resetHives, fetchHives } from './hiveSlice';
 // Storage key for users
 const USERS_STORAGE_KEY = '@hiveapp:users';
 
+// Additional storage key for app settings
+const APP_SETTINGS_STORAGE_KEY = '@hiveapp:app_settings';
+
 const initialState = {
   isAuthenticated: false,
   user: null,
@@ -56,6 +59,29 @@ const saveUsers = async (users) => {
   } catch (error) {
     console.error('Error saving users to AsyncStorage:', error);
     return false;
+  }
+};
+
+// Function to save app settings to AsyncStorage
+const saveAppSettings = async (settings) => {
+  try {
+    await AsyncStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    return true;
+  } catch (error) {
+    console.error('Error saving app settings to AsyncStorage:', error);
+    return false;
+  }
+};
+
+// Function to load app settings from AsyncStorage
+export const loadSavedAppSettings = () => async (dispatch) => {
+  try {
+    const savedSettings = await AsyncStorage.getItem(APP_SETTINGS_STORAGE_KEY);
+    if (savedSettings) {
+      dispatch(updateAppSettings(JSON.parse(savedSettings)));
+    }
+  } catch (error) {
+    console.error('Error loading app settings from AsyncStorage:', error);
   }
 };
 
@@ -126,6 +152,9 @@ const authSlice = createSlice({
         ...state.appSettings,
         ...action.payload,
       };
+      
+      // Save updated settings to AsyncStorage
+      saveAppSettings(state.appSettings);
     },
     // New action to restore session from AsyncStorage
     restoreSession: (state, action) => {

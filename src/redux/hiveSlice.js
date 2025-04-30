@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import databaseService from '../services/databaseService';
+import { triggerTestNotification } from './notificationSlice';
 
 // Initial state with empty hives array
 const initialState = {
@@ -44,8 +45,16 @@ export const saveHive = createAsyncThunk(
 // NEW Async thunk to sync sensor data for all hives from Firebase
 export const syncAllHivesData = createAsyncThunk(
   'hives/syncAllHivesData',
-  async (_, { getState, rejectWithValue }) => {
+  async (_, { getState, rejectWithValue, dispatch }) => {
     const { hives } = getState().hives;
+    const { appSettings } = getState().auth;
+    const { thresholds } = getState().notifications;
+    
+    // Skip sync if dataSync setting is disabled
+    if (!appSettings.dataSync) {
+      return [];
+    }
+    
     if (!hives || hives.length === 0) {
       return []; // No hives to sync
     }
@@ -58,6 +67,9 @@ export const syncAllHivesData = createAsyncThunk(
            // Update local storage (databaseService handles this now)
            await databaseService.updateLocalHiveSensors(hive.id, firebaseData.sensors);
            updatedHivesData.push({ hiveId: hive.id, sensors: firebaseData.sensors });
+           
+           // Check sensor data against thresholds and notify if needed
+           checkThresholdsAndNotify(firebaseData.sensors, hive, thresholds, appSettings, dispatch);
         } else {
           // Optionally handle hives that weren't found in Firebase (e.g., log a warning)
           console.warn(`Could not sync data for hive ${hive.id}. Not found in Firebase or fetch error.`);
@@ -69,6 +81,50 @@ export const syncAllHivesData = createAsyncThunk(
     }
   }
 );
+
+// Helper function to check sensor data against thresholds and notify if needed
+function checkThresholdsAndNotify(sensors, hive, thresholds, appSettings, dispatch) {
+  // Skip notification checks if push notifications are disabled
+  if (!appSettings.pushNotifications) {
+    return;
+  }
+  
+  const { temperature, humidity, varroa } = sensors;
+  
+  // Check temperature threshold
+  if (temperature > thresholds.temperature.max) {
+    dispatch(triggerTestNotification({
+      type: 'temperature',
+      hiveName: hive.name,
+      hiveId: hive.id,
+    }));
+  }
+  else if (temperature < thresholds.temperature.min) {
+    dispatch(triggerTestNotification({
+      type: 'temperature',
+      hiveName: hive.name,
+      hiveId: hive.id,
+    }));
+  }
+  
+  // Check humidity threshold
+  if (humidity > thresholds.humidity.max || humidity < thresholds.humidity.min) {
+    dispatch(triggerTestNotification({
+      type: 'humidity',
+      hiveName: hive.name,
+      hiveId: hive.id,
+    }));
+  }
+  
+  // Check varroa threshold
+  if (varroa > thresholds.varroa.max) {
+    dispatch(triggerTestNotification({
+      type: 'varroa',
+      hiveName: hive.name,
+      hiveId: hive.id,
+    }));
+  }
+}
 
 // Async thunk to delete a hive
 export const deleteHive = createAsyncThunk(
@@ -98,6 +154,40 @@ const hiveSlice = createSlice({
     resetHives: (state) => {
       // Keep initialState structure
       Object.assign(state, initialState);
+    },
+    simulateHiveEvent: (state, action) => {
+      const { hiveId, eventType } = action.payload;
+      const hiveIndex = state.hives.findIndex(h => h.id === hiveId);
+      
+      if (hiveIndex !== -1) {
+        const hive = state.hives[hiveIndex];
+        
+        // Simulate sensor data change based on event type
+        switch (eventType) {
+          case 'temperature':
+            // Simulate temperature spike
+            hive.sensors.temperature = Math.min(42, hive.sensors.temperature + 5);
+            break;
+          case 'humidity':
+            // Simulate humidity issue (too high)
+            hive.sensors.humidity = Math.min(95, hive.sensors.humidity + 15);
+            break;
+          case 'varroa':
+            // Simulate varroa outbreak
+            hive.sensors.varroa = Math.min(5, hive.sensors.varroa + 2);
+            break;
+          case 'swarm':
+            // Simulate swarm (weight drop)
+            hive.sensors.weight = Math.max(5, hive.sensors.weight * 0.6);
+            break;
+        }
+        
+        // Update hive status based on new sensor data
+        hive.status = determineHiveStatus(hive);
+        
+        // Update lastUpdated timestamp
+        hive.lastUpdated = new Date().toISOString();
+      }
     },
   },
   extraReducers: (builder) => {
@@ -226,7 +316,8 @@ function determineHiveStatus(hive) {
 
 export const { 
   selectHive, 
-  resetHives
+  resetHives,
+  simulateHiveEvent
 } = hiveSlice.actions;
 
 export default hiveSlice.reducer; 
