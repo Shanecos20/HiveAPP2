@@ -12,7 +12,8 @@ import {
   Alert
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { login } from '../redux/authSlice';
+import { login, resetAuthState } from '../redux/authSlice';
+import { purgePersistedState } from '../redux/store';
 import theme from '../utils/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../components/common';
@@ -57,6 +58,37 @@ const LoginScreen = ({ navigation }) => {
         routes: [{ name: 'Main' }],
       });
     }
+  };
+  
+  const handleResetAuth = async () => {
+    await dispatch(resetAuthState());
+    Alert.alert('App Reset', 'Authentication state has been reset. You can now try to log in again.');
+  };
+  
+  const handleFullReset = async () => {
+    Alert.alert(
+      'Full App Reset',
+      'This will reset all app data including login credentials and saved hives. Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset Everything',
+          onPress: async () => {
+            await purgePersistedState();
+            Alert.alert('Reset Complete', 'All app data has been reset. The app will now restart.');
+            // Force a reload of the app
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
   
   return (
@@ -127,6 +159,23 @@ const LoginScreen = ({ navigation }) => {
           disabled={isLoading}
           style={styles.buttonMargin}
         />
+        
+        {isLoading && (
+          <>
+            <Button
+              title="Reset App (If Stuck)"
+              onPress={handleResetAuth}
+              variant="secondary"
+              style={[styles.buttonMargin, styles.resetButton]}
+            />
+            <Button
+              title="Full Reset (Emergency)"
+              onPress={handleFullReset}
+              variant="secondary"
+              style={[styles.buttonMargin, styles.emergencyResetButton]}
+            />
+          </>
+        )}
         
         <Button
           title="Create Account"
@@ -268,6 +317,14 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: 'bold',
     fontSize: theme.typography.bodyMedium,
+  },
+  resetButton: {
+    backgroundColor: 'rgba(255, 200, 200, 0.8)',
+    borderColor: theme.colors.error,
+  },
+  emergencyResetButton: {
+    backgroundColor: 'rgba(255, 150, 150, 0.8)',
+    borderColor: '#d32f2f',
   },
 });
 

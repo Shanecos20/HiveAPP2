@@ -287,15 +287,24 @@ export const logoutUser = () => async (dispatch) => {
   try {
     await databaseService.logoutUser();
     
-    // Clear user authentication state
-    dispatch(logout());
-    
-    // Reset hives state to clear the current user's hives
+    // Clear hives when logging out
     dispatch(resetHives());
     
+    dispatch(logout());
     return true;
   } catch (error) {
     console.error('Error during logout:', error);
+    return false;
+  }
+};
+
+// New function to reset auth state when loading gets stuck
+export const resetAuthState = () => async (dispatch) => {
+  try {
+    dispatch(loginFailure(null)); // This will set isLoading to false and clear error
+    return true;
+  } catch (error) {
+    console.error('Error resetting auth state:', error);
     return false;
   }
 };

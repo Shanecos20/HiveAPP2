@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { persistStore, persistReducer } from 'redux-persist';
+import { persistStore, persistReducer, PURGE } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { combineReducers } from 'redux';
 import hiveReducer from './hiveSlice';
@@ -28,9 +28,14 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types to avoid serialization warnings
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'persist/REGISTER'],
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'persist/REGISTER', 'persist/PURGE'],
       },
     }),
 });
 
-export const persistor = persistStore(store); 
+export const persistor = persistStore(store);
+
+// Function to purge the persisted state
+export const purgePersistedState = () => {
+  return persistor.purge();
+}; 
